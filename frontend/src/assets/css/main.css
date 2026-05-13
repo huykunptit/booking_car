@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-stitch-background text-stitch-on-surface font-sans;
+  }
+}
+
+@layer components {
+  .editorial-display {
+    @apply font-extrabold tracking-tight leading-tight;
+  }
+
+  .editorial-headline {
+    @apply font-semibold tracking-normal leading-snug;
+  }
+
+  .glass-effect {
+    @apply bg-stitch-background/80 backdrop-blur-xl;
+  }
+
+  .no-line-card {
+    @apply border-none bg-white rounded-stitch-lg shadow-stitch-ambient p-4;
+  }
+
+  /* Stitch Primary Button */
+  .btn-primary {
+    @apply bg-gradient-to-b from-stitch-primary-container to-stitch-primary text-white font-semibold rounded-full px-6 py-3 transition-all active:scale-95;
+  }
+
+  /* Stitch Accent Button */
+  .btn-accent {
+    @apply bg-stitch-accent text-white font-semibold rounded-full px-6 py-3 transition-all hover:bg-stitch-secondary active:scale-95;
+  }
+
+  /* Stitch Input */
+  .input-field {
+    @apply bg-stitch-surface-container-highest border-none rounded-stitch-md px-4 py-3 focus:bg-white focus:ring-2 focus:ring-stitch-primary/20 transition-all outline-none;
+  }
+}
