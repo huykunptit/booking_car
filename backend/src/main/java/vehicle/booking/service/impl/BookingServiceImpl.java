@@ -1,6 +1,7 @@
 package vehicle.booking.service.impl;
 
 import vehicle.booking.dto.request.BookingCreateRequest;
+import vehicle.booking.dto.request.BookingLocationRequest;
 import vehicle.booking.dto.response.BookingResponse;
 import vehicle.booking.dto.response.BookingSummaryResponse;
 import vehicle.booking.entity.*;
@@ -84,6 +85,12 @@ public class BookingServiceImpl implements BookingService {
         booking.setStartDate(request.startDate());
         booking.setEndDate(request.endDate());
         booking.setTotalPrice(totalPrice);
+        booking.setPickupAddress(null);
+        booking.setPickupLatitude(null);
+        booking.setPickupLongitude(null);
+        booking.setDropoffAddress(null);
+        booking.setDropoffLatitude(null);
+        booking.setDropoffLongitude(null);
         booking.setStatus(BookingStatus.PENDING);
 
         booking = bookingRepository.save(booking);
@@ -261,11 +268,45 @@ public class BookingServiceImpl implements BookingService {
         return expiredBookingIds;
     }
 
+    @Override
+    @Transactional
+    public BookingResponse updatePickupLocation(Long bookingId, String currentUserPhone, BookingLocationRequest request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND, bookingId));
+        verifyOwner(booking, currentUserPhone);
+        booking.setPickupAddress(request.address());
+        booking.setPickupLatitude(request.latitude());
+        booking.setPickupLongitude(request.longitude());
+        booking = bookingRepository.save(booking);
+        return mapToResponse(booking);
+    }
+
+    @Override
+    @Transactional
+    public BookingResponse updateDropoffLocation(Long bookingId, String currentUserPhone, BookingLocationRequest request) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new AppException(ErrorCode.BOOKING_NOT_FOUND, bookingId));
+        verifyOwner(booking, currentUserPhone);
+        booking.setDropoffAddress(request.address());
+        booking.setDropoffLatitude(request.latitude());
+        booking.setDropoffLongitude(request.longitude());
+        booking = bookingRepository.save(booking);
+        return mapToResponse(booking);
+    }
+
+    private void verifyOwner(Booking booking, String currentUserPhone) {
+        User currentUser = userRepository.findByPhone(currentUserPhone)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (!booking.getUser().getUserId().equals(currentUser.getUserId())) {
+            throw new AppException(ErrorCode.BOOKING_ACCESS_DENIED);
+        }
+    }
+
     private BookingResponse mapToResponse(Booking booking) {
         return new BookingResponse(
                 booking.getBookingId(),
                 booking.getUser().getUserId(),
-                booking.getInvoice().getInvoiceId(),
+                booking.getInvoice() != null ? booking.getInvoice().getInvoiceId() : null,
                 booking.getUser().getName(),
                 booking.getUser().getPhone(),
                 booking.getCar().getCarId(),
@@ -277,7 +318,13 @@ public class BookingServiceImpl implements BookingService {
                 booking.getTotalPrice(),
                 booking.getStatus(),
                 booking.getCreatedAt(),
-                booking.getUpdatedAt()
+                booking.getUpdatedAt(),
+                booking.getPickupAddress(),
+                booking.getPickupLatitude(),
+                booking.getPickupLongitude(),
+                booking.getDropoffAddress(),
+                booking.getDropoffLatitude(),
+                booking.getDropoffLongitude()
         );
     }
 

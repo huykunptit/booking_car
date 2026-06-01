@@ -14,6 +14,8 @@ public record CarSummaryResponse(
         String imageUrl,
         Integer seats,
         String location,
+        java.math.BigDecimal latitude,
+        java.math.BigDecimal longitude,
         Double averageRating,
         Long reviewCount
 ) {

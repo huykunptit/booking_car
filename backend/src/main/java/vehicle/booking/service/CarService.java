@@ -41,4 +41,6 @@ public interface CarService {
     );
 
     CarAvailabilityResponse getCarAvailability(Long carId);
+
+    CarResponse updateCarLocation(Long carId, vehicle.booking.dto.request.CarLocationUpdateRequest request);
 }

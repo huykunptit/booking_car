@@ -50,6 +50,18 @@ public class Car {
     @Column(name = "location")
     private String location;
 
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private java.math.BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private java.math.BigDecimal longitude;
+
+    @Column(name = "location_source")
+    private String locationSource;
+
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
+
     @Column(name = "seats")
     private Integer seats = 5;
 
