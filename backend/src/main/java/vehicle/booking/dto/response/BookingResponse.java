@@ -21,6 +21,12 @@ public record BookingResponse(
         BigDecimal totalPrice,
         BookingStatus status,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String pickupAddress,
+        BigDecimal pickupLatitude,
+        BigDecimal pickupLongitude,
+        String dropoffAddress,
+        BigDecimal dropoffLatitude,
+        BigDecimal dropoffLongitude
 ) {
 }

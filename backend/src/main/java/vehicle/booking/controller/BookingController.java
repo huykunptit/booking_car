@@ -1,6 +1,7 @@
 package vehicle.booking.controller;
 
 import vehicle.booking.dto.request.BookingCreateRequest;
+import vehicle.booking.dto.request.BookingLocationRequest;
 import vehicle.booking.dto.response.ApiResponse;
 import vehicle.booking.dto.response.BookingResponse;
 import vehicle.booking.dto.response.BookingSummaryResponse;
@@ -80,5 +81,21 @@ public class BookingController {
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Huỷ booking thành công", response)
         );
+    }
+
+    @PutMapping("/{id}/pickup-location")
+    public ResponseEntity<ApiResponse<BookingResponse>> updatePickupLocation(
+            @PathVariable Long id,
+            @RequestBody BookingLocationRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Cap nhat diem don thanh cong", bookingService.updatePickupLocation(id, authentication.getName(), request)));
+    }
+
+    @PutMapping("/{id}/dropoff-location")
+    public ResponseEntity<ApiResponse<BookingResponse>> updateDropoffLocation(
+            @PathVariable Long id,
+            @RequestBody BookingLocationRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Cap nhat diem tra thanh cong", bookingService.updateDropoffLocation(id, authentication.getName(), request)));
     }
 }

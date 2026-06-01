@@ -1,6 +1,7 @@
 package vehicle.booking.controller.admin;
 
 import vehicle.booking.dto.request.CarCreateRequest;
+import vehicle.booking.dto.request.CarLocationUpdateRequest;
 import vehicle.booking.dto.request.CarUpdateRequest;
 import vehicle.booking.dto.response.ApiResponse;
 import vehicle.booking.dto.response.CarResponse;
@@ -42,5 +43,12 @@ public class AdminCarController {
         carService.deleteCar(id);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Xóa xe thành công (soft delete)", null));
+    }
+
+    @PutMapping("/{id}/location")
+    public ResponseEntity<ApiResponse<CarResponse>> updateLocation(
+            @PathVariable Long id,
+            @RequestBody CarLocationUpdateRequest request) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Cập nhật vị trí xe thành công", carService.updateCarLocation(id, request)));
     }
 }

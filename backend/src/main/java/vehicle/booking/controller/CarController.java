@@ -1,6 +1,7 @@
 package vehicle.booking.controller;
 
 import vehicle.booking.dto.response.ApiResponse;
+import vehicle.booking.dto.request.CarLocationUpdateRequest;
 import vehicle.booking.dto.response.CarAvailabilityResponse;
 import vehicle.booking.dto.response.CarImageResponse;
 import vehicle.booking.dto.response.CarResponse;
@@ -108,5 +109,12 @@ public class CarController {
         CarImageResponse primaryImage = carImageService.getPrimaryImageByCarId(carId);
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "Lay anh dai dien xe thanh cong", primaryImage));
+    }
+
+    @PutMapping("/{carId}/location")
+    public ResponseEntity<ApiResponse<CarResponse>> updateCarLocation(
+            @PathVariable Long carId,
+            @RequestBody CarLocationUpdateRequest request) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Cap nhat vi tri xe thanh cong", carService.updateCarLocation(carId, request)));
     }
 }

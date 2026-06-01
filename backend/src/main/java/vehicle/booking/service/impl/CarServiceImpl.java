@@ -1,6 +1,7 @@
 package vehicle.booking.service.impl;
 
 import vehicle.booking.dto.request.CarCreateRequest;
+import vehicle.booking.dto.request.CarLocationUpdateRequest;
 import vehicle.booking.dto.request.CarUpdateRequest;
 import vehicle.booking.dto.response.CarAvailabilityResponse;
 import vehicle.booking.dto.response.CarResponse;
@@ -196,6 +197,22 @@ public class CarServiceImpl implements CarService {
         );
     }
 
+    @Override
+    @Transactional
+    public CarResponse updateCarLocation(Long carId, CarLocationUpdateRequest request) {
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new AppException(ErrorCode.CAR_NOT_FOUND, carId));
+        car.setLatitude(request.latitude());
+        car.setLongitude(request.longitude());
+        if (request.address() != null) {
+            car.setLocation(request.address());
+        }
+        car.setLocationSource(request.source());
+        car.setLocationUpdatedAt(java.time.LocalDateTime.now());
+        Car saved = carRepository.save(car);
+        return mapToResponse(saved, resolvePrimaryImageUrl(saved.getCarId()));
+    }
+
     private CarResponse mapToResponse(Car car, String imageUrl) {
         Double avgRating = reviewRepository.getAverageRatingByCarId(car.getCarId());
         Long reviewCount = reviewRepository.countByCarId(car.getCarId());
@@ -213,6 +230,10 @@ public class CarServiceImpl implements CarService {
                 car.getTransmission(),
                 car.getFuelType(),
                 car.getLocation(),
+                car.getLatitude(),
+                car.getLongitude(),
+                car.getLocationSource(),
+                car.getLocationUpdatedAt(),
                 car.getCreatedAt(),
                 car.getUpdatedAt(),
                 avgRating != null ? avgRating : 0.0,
@@ -234,6 +255,8 @@ public class CarServiceImpl implements CarService {
                 imageUrl,
                 car.getSeats(),
                 car.getLocation(),
+                car.getLatitude(),
+                car.getLongitude(),
                 avgRating != null ? avgRating : 0.0,
                 reviewCount != null ? reviewCount : 0L
         );
