@@ -1,16 +1,16 @@
 ALTER TABLE car
-    ADD COLUMN IF NOT EXISTS latitude DECIMAL(10,7) NULL,
-    ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,7) NULL,
-    ADD COLUMN IF NOT EXISTS location_source VARCHAR(100) NULL,
-    ADD COLUMN IF NOT EXISTS location_updated_at DATETIME NULL;
+    ADD COLUMN latitude DECIMAL(10,7) NULL,
+    ADD COLUMN longitude DECIMAL(10,7) NULL,
+    ADD COLUMN location_source VARCHAR(100) NULL,
+    ADD COLUMN location_updated_at DATETIME NULL;
 
 ALTER TABLE booking
-    ADD COLUMN IF NOT EXISTS pickup_address VARCHAR(255) NULL,
-    ADD COLUMN IF NOT EXISTS pickup_latitude DECIMAL(10,7) NULL,
-    ADD COLUMN IF NOT EXISTS pickup_longitude DECIMAL(10,7) NULL,
-    ADD COLUMN IF NOT EXISTS dropoff_address VARCHAR(255) NULL,
-    ADD COLUMN IF NOT EXISTS dropoff_latitude DECIMAL(10,7) NULL,
-    ADD COLUMN IF NOT EXISTS dropoff_longitude DECIMAL(10,7) NULL;
+    ADD COLUMN pickup_address VARCHAR(255) NULL,
+    ADD COLUMN pickup_latitude DECIMAL(10,7) NULL,
+    ADD COLUMN pickup_longitude DECIMAL(10,7) NULL,
+    ADD COLUMN dropoff_address VARCHAR(255) NULL,
+    ADD COLUMN dropoff_latitude DECIMAL(10,7) NULL,
+    ADD COLUMN dropoff_longitude DECIMAL(10,7) NULL;
 
 CREATE TABLE IF NOT EXISTS vehicle_tracking_location (
     tracking_location_id BIGINT PRIMARY KEY AUTO_INCREMENT,

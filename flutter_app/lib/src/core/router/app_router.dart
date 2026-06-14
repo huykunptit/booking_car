@@ -15,29 +15,67 @@ import '../../features/cars/car_detail_screen.dart';
 import '../../features/cars/car_list_screen.dart';
 import '../../features/cars/car_tracking_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/home/main_layout.dart';
+import '../../features/splash/splash_screen.dart';
+import '../../features/profile/profile_screen.dart';
+import '../../features/profile/change_password_screen.dart';
+import '../../features/invoices/invoice_list_screen.dart';
+import '../../features/invoices/invoice_detail_screen.dart';
+import '../../features/notifications/notification_screen.dart';
+import '../../features/owner/owner_dashboard_screen.dart';
+import '../../features/owner/owner_car_list_screen.dart';
+import '../../features/owner/owner_car_form_screen.dart';
+import '../../features/owner/owner_bookings_screen.dart';
+import '../../features/verification/verification_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authControllerProvider);
+  final auth = ref.read(authControllerProvider);
   final refresh = GoRouterRefreshNotifier(auth);
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/',
     refreshListenable: refresh,
     redirect: (context, state) {
       final loggedIn = auth.isAuthenticated;
+      final isSplash = state.matchedLocation == '/';
       final inAuthFlow = state.matchedLocation == '/login' ||
           state.matchedLocation == '/register' ||
           state.matchedLocation == '/forgot-password';
+      if (isSplash) return null;
       if (!loggedIn && !inAuthFlow) return '/login';
       if (loggedIn && inAuthFlow) return '/home';
       return null;
     },
     routes: [
+      GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
       GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(path: '/reset-password', builder: (context, state) => const ResetPasswordScreen()),
-      GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
-      GoRoute(path: '/cars', builder: (context, state) => const CarListScreen()),
+
+      // ── Main shell with Bottom Navigation Bar ──
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => MainLayout(navigationShell: shell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/home', builder: (c, s) => const HomeScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/cars', builder: (c, s) => const CarListScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/bookings', builder: (c, s) => const BookingHistoryScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/invoices', builder: (c, s) => const InvoiceListScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+          ]),
+        ],
+      ),
+
+      // ── Full-screen routes (no bottom nav) ──
+      GoRoute(path: '/change-password', builder: (context, state) => const ChangePasswordScreen()),
       GoRoute(
         path: '/cars/:id',
         builder: (context, state) => CarDetailScreen(carId: state.pathParameters['id']!),
@@ -50,7 +88,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/cars/:id/tracking',
         builder: (context, state) => CarTrackingScreen(carId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/bookings', builder: (context, state) => const BookingHistoryScreen()),
       GoRoute(
         path: '/bookings/:id',
         builder: (context, state) => BookingDetailScreen(bookingId: state.pathParameters['id']!),
@@ -59,6 +96,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/bookings/:id/pickup-dropoff',
         builder: (context, state) => BookingPickupDropoffScreen(bookingId: state.pathParameters['id']!),
       ),
+      GoRoute(
+        path: '/invoices/:id',
+        builder: (context, state) => InvoiceDetailScreen(invoiceId: state.pathParameters['id']!),
+      ),
+      GoRoute(path: '/notifications', builder: (context, state) => const NotificationScreen()),
+      GoRoute(path: '/verification', builder: (context, state) => const VerificationScreen()),
+      GoRoute(path: '/owner', builder: (context, state) => const OwnerDashboardScreen()),
+      GoRoute(path: '/owner/cars', builder: (context, state) => const OwnerCarListScreen()),
+      GoRoute(path: '/owner/cars/add', builder: (context, state) => const OwnerCarFormScreen()),
+      GoRoute(
+        path: '/owner/cars/:carId/edit',
+        builder: (context, state) => OwnerCarFormScreen(carId: state.pathParameters['carId']),
+      ),
+      GoRoute(path: '/owner/bookings', builder: (context, state) => const OwnerBookingsScreen()),
     ],
   );
 });

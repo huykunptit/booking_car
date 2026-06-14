@@ -10,6 +10,9 @@ import com.twilio.rest.verify.v2.service.VerificationCheck;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
+import com.google.firebase.auth.FirebaseAuthException;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,11 @@ public class PhoneVerificationService {
     public long sendOtp(String normalizedPhone) {
         if (twilioProperties.isMockMode()) {
             log.info("Mock OTP sent to phone: {}", phoneNumberService.maskPhone(normalizedPhone));
+            return OTP_EXPIRES_IN_SECONDS;
+        }
+
+        if (twilioProperties.isFirebaseMode()) {
+            log.info("Firebase OTP mode: Client handles OTP sending for phone: {}", phoneNumberService.maskPhone(normalizedPhone));
             return OTP_EXPIRES_IN_SECONDS;
         }
 
@@ -58,6 +66,12 @@ public class PhoneVerificationService {
         if (twilioProperties.isMockMode()) {
             verifyMockOtp(otp);
             log.info("Mock OTP verified for phone: {}", phoneNumberService.maskPhone(normalizedPhone));
+            return;
+        }
+
+        if (twilioProperties.isFirebaseMode()) {
+            verifyFirebaseOtp(normalizedPhone, otp);
+            log.info("Firebase OTP verified for phone: {}", phoneNumberService.maskPhone(normalizedPhone));
             return;
         }
 
@@ -108,5 +122,34 @@ public class PhoneVerificationService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private void verifyFirebaseOtp(String normalizedPhone, String idToken) {
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String firebasePhone = (String) decodedToken.getClaims().get("phone_number");
+            if (firebasePhone == null || firebasePhone.isBlank()) {
+                log.warn("Phone number claim is missing in Firebase token");
+                throw new AppException(ErrorCode.PHONE_OTP_INVALID);
+            }
+            
+            String normalizedFirebasePhone = phoneNumberService.normalizeToE164(firebasePhone);
+            String normalizedInputPhone = phoneNumberService.normalizeToE164(normalizedPhone);
+            
+            if (!normalizedFirebasePhone.equals(normalizedInputPhone)) {
+                log.warn("Firebase token phone number '{}' does not match request phone number '{}'", 
+                        phoneNumberService.maskPhone(normalizedFirebasePhone), 
+                        phoneNumberService.maskPhone(normalizedInputPhone));
+                throw new AppException(ErrorCode.PHONE_OTP_INVALID);
+            }
+        } catch (FirebaseAuthException e) {
+            log.warn("Firebase token verification failed: {}", e.getMessage());
+            throw new AppException(ErrorCode.PHONE_OTP_INVALID);
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Error during Firebase token verification: {}", e.getMessage());
+            throw new AppException(ErrorCode.PHONE_OTP_INVALID);
+        }
     }
 }

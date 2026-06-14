@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'auth_repository.dart';
-import 'auth_tokens.dart';
+import 'firebase_phone_service.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController(this._repo) {
@@ -15,6 +15,12 @@ class AuthController extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  String? _verificationId;
+  bool _useFirebase = false;
+
+  String? get verificationId => _verificationId;
+  bool get useFirebase => _useFirebase;
 
   Future<void> _restore() async {
     final refreshToken = await _repo.readRefreshToken();
@@ -30,45 +36,118 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> login(String phone, String password) async {
-    await _setLoading(true);
+    _isLoading = true;
+    notifyListeners();
     try {
       final tokens = await _repo.login(phone: phone, password: password);
       await _repo.saveTokens(tokens);
       _isAuthenticated = true;
     } finally {
-      await _setLoading(false);
+      _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> register(String phone, String password, String otp) async {
-    await _setLoading(true);
+    _isLoading = true;
+    notifyListeners();
     try {
-      final tokens = await _repo.register(phone: phone, password: password, otp: otp);
+      String finalOtp = otp;
+      if (_useFirebase && _verificationId != null) {
+        final phoneService = FirebasePhoneService();
+        final idToken = await phoneService.getFirebaseIdToken(
+          verificationId: _verificationId!,
+          smsCode: otp,
+        );
+        if (idToken == null) {
+          throw Exception('Không lấy được mã xác thực từ Firebase');
+        }
+        finalOtp = idToken;
+      }
+      final tokens = await _repo.register(phone: phone, password: password, otp: finalOtp);
       await _repo.saveTokens(tokens);
       _isAuthenticated = true;
     } finally {
-      await _setLoading(false);
+      _isLoading = false;
       notifyListeners();
     }
   }
 
+  Future<void> sendOtp(
+    String phone, {
+    required Function(String verificationId) onCodeSent,
+    required Function(String error) onError,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final phoneService = FirebasePhoneService();
+      await phoneService.verifyPhone(
+        phoneNumber: phone,
+        onCodeSent: (verificationId, resendToken) {
+          _verificationId = verificationId;
+          _useFirebase = true;
+          _isLoading = false;
+          notifyListeners();
+          onCodeSent(verificationId);
+        },
+        onFailed: (e) async {
+          debugPrint('Firebase verification failed, falling back to Mock: ${e.message}');
+          try {
+            await _repo.sendOtp(phone: phone);
+            _useFirebase = false;
+            _verificationId = null;
+            _isLoading = false;
+            notifyListeners();
+            onCodeSent("MOCK");
+          } catch (err) {
+            _isLoading = false;
+            notifyListeners();
+            onError(err.toString());
+          }
+        },
+        onAutoVerified: (credential) {
+          // Automatic verification callback
+        },
+        onTimeout: (verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      debugPrint('Firebase verifyPhone threw error, falling back to Mock: $e');
+      try {
+        await _repo.sendOtp(phone: phone);
+        _useFirebase = false;
+        _verificationId = null;
+        _isLoading = false;
+        notifyListeners();
+        onCodeSent("MOCK");
+      } catch (err) {
+        _isLoading = false;
+        notifyListeners();
+        onError(err.toString());
+      }
+    }
+  }
+
   Future<void> forgotPassword(String email) async {
-    await _setLoading(true);
+    _isLoading = true;
+    notifyListeners();
     try {
       await _repo.forgotPassword(email: email);
     } finally {
-      await _setLoading(false);
+      _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> resetPassword({required String email, required String otp, required String newPassword}) async {
-    await _setLoading(true);
+    _isLoading = true;
+    notifyListeners();
     try {
       await _repo.resetPassword(email: email, otp: otp, newPassword: newPassword);
     } finally {
-      await _setLoading(false);
+      _isLoading = false;
       notifyListeners();
     }
   }
@@ -85,11 +164,6 @@ class AuthController extends ChangeNotifier {
     final tokens = await _repo.refresh(refreshToken: refreshToken);
     await _repo.saveTokens(tokens);
     _isAuthenticated = true;
-    notifyListeners();
-  }
-
-  Future<void> _setLoading(bool value) async {
-    _isLoading = value;
     notifyListeners();
   }
 }

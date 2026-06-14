@@ -1,7 +1,7 @@
 -- Seed Users
-INSERT INTO users (name, email, password, phone, role) VALUES 
-('Admin AutoRent', 'admin@autorent.com', '$2a$10$8.UnVuG9HHgffUDAlk8q2OuVGkqBKkjJR86L8zLlzqL.fD/z95t9O', '0987654321', 'ADMIN'),
-('Nguyễn Văn Khách', 'user@gmail.com', '$2a$10$8.UnVuG9HHgffUDAlk8q2OuVGkqBKkjJR86L8zLlzqL.fD/z95t9O', '0123456789', 'USER');
+INSERT INTO users (name, email, password, phone, role) VALUES
+('Admin AutoRent', 'admin@autorent.com', '$2a$10$moAvhjGMF/bmSSW486th8OA0sRQUse0jUGHX5ReeaktPOkkyZus1a', '+84987654321', 'ADMIN'),
+('Nguyễn Văn Khách', 'user@gmail.com', '$2a$10$moAvhjGMF/bmSSW486th8OA0sRQUse0jUGHX5ReeaktPOkkyZus1a', '+84123456789', 'USER');
 
 -- Seed Cars
 INSERT INTO car (name, brand, model, license_plate, price_per_day, status, location, seats, transmission, fuel_type) VALUES 

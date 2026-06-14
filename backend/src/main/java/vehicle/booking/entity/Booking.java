@@ -46,27 +46,6 @@ public class Booking {
     private String pickupAddress;
 
     @Column(name = "pickup_latitude", precision = 10, scale = 7)
-    private java.math.BigDecimal pickupLatitude;
-
-    @Column(name = "pickup_longitude", precision = 10, scale = 7)
-    private java.math.BigDecimal pickupLongitude;
-
-    @Column(name = "dropoff_address")
-    private String dropoffAddress;
-
-    @Column(name = "dropoff_latitude", precision = 10, scale = 7)
-    private java.math.BigDecimal dropoffLatitude;
-
-    @Column(name = "dropoff_longitude", precision = 10, scale = 7)
-    private java.math.BigDecimal dropoffLongitude;
-
-    @Column(name = "total_price", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalPrice;
-
-    @Column(name = "pickup_address")
-    private String pickupAddress;
-
-    @Column(name = "pickup_latitude", precision = 10, scale = 7)
     private BigDecimal pickupLatitude;
 
     @Column(name = "pickup_longitude", precision = 10, scale = 7)
@@ -80,6 +59,9 @@ public class Booking {
 
     @Column(name = "dropoff_longitude", precision = 10, scale = 7)
     private BigDecimal dropoffLongitude;
+
+    @Column(name = "total_price", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

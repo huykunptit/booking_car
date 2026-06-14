@@ -148,6 +148,16 @@ public enum ErrorCode {
             "Tải ảnh lên thất bại. Vui lòng thử lại.",
             HttpStatus.INTERNAL_SERVER_ERROR
     ),
+    CAR_NOT_OWNER(
+            "CAR_NOT_OWNER",
+            "Bạn không có quyền thao tác xe này.",
+            HttpStatus.FORBIDDEN
+    ),
+    BOOKING_OWNER_FORBIDDEN(
+            "BOOKING_OWNER_FORBIDDEN",
+            "Bạn không có quyền quản lý booking này.",
+            HttpStatus.FORBIDDEN
+    ),
     CAR_IMAGE_NOT_FOUND(
             "CAR_IMAGE_NOT_FOUND",
             "Không tìm thấy ảnh xe với ID: %s.",

@@ -19,6 +19,8 @@ import vehicle.booking.repository.BookingRepository;
 import vehicle.booking.repository.CarImageRepository;
 import vehicle.booking.repository.CarRepository;
 import vehicle.booking.service.CarService;
+import vehicle.booking.entity.User;
+import vehicle.booking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -58,6 +60,7 @@ public class CarServiceImpl implements CarService {
     private final BookingRepository bookingRepository;
     private final CarImageRepository carImageRepository;
     private final vehicle.booking.repository.ReviewRepository reviewRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -291,6 +294,23 @@ public class CarServiceImpl implements CarService {
                 ));
     }
 
+    @Override
+    public List<CarSummaryResponse> getNearbyCars(Double lat, Double lng, Double radiusKm, boolean onlyAvailable) {
+        double delta = radiusKm / 111.0;
+        double lngDelta = radiusKm / (111.0 * Math.cos(Math.toRadians(lat)));
+
+        BigDecimal minLat = BigDecimal.valueOf(lat - delta);
+        BigDecimal maxLat = BigDecimal.valueOf(lat + delta);
+        BigDecimal minLng = BigDecimal.valueOf(lng - lngDelta);
+        BigDecimal maxLng = BigDecimal.valueOf(lng + lngDelta);
+
+        List<Car> cars = carRepository.findNearby(minLat, maxLat, minLng, maxLng, onlyAvailable);
+        Map<Long, String> imageUrls = resolvePrimaryImageUrls(cars);
+        return cars.stream()
+                .map(car -> mapToSummary(car, imageUrls.get(car.getCarId())))
+                .toList();
+    }
+
     private String normalizeText(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
@@ -323,6 +343,84 @@ public class CarServiceImpl implements CarService {
         if (!normalizedSeats.stream().allMatch(SUPPORTED_SEATS::contains)) {
             throw new AppException(ErrorCode.CAR_FILTER_INVALID_SEATS);
         }
+    }
+
+    @Override
+    @Transactional
+    public CarResponse createCarByOwner(CarCreateRequest request, String ownerPhone) {
+        if (carRepository.existsByLicensePlate(request.licensePlate())) {
+            throw new AppException(ErrorCode.CAR_LICENSE_PLATE_EXISTS, request.licensePlate());
+        }
+        User owner = userRepository.findByPhone(ownerPhone)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Car car = new Car();
+        car.setName(request.name());
+        car.setBrand(request.brand());
+        car.setModel(request.model());
+        car.setLicensePlate(request.licensePlate());
+        car.setPricePerDay(request.pricePerDay());
+        car.setStatus(CarStatus.AVAILABLE);
+        car.setSeats(Objects.requireNonNullElse(request.seats(), DEFAULT_SEATS));
+        car.setTransmission(Objects.requireNonNullElse(request.transmission(), DEFAULT_TRANSMISSION));
+        car.setFuelType(Objects.requireNonNullElse(request.fuelType(), DEFAULT_FUEL_TYPE));
+        car.setLocation(request.location());
+        car.setOwner(owner);
+
+        Car saved = carRepository.save(car);
+        return mapToResponse(saved, null);
+    }
+
+    @Override
+    public Page<CarSummaryResponse> getMyOwnerCars(String ownerPhone, Pageable pageable) {
+        User owner = userRepository.findByPhone(ownerPhone)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Page<Car> page = carRepository.findByOwnerUserId(owner.getUserId(), pageable);
+        return toSummaryPage(page);
+    }
+
+    @Override
+    @Transactional
+    public CarResponse updateCarByOwner(Long carId, CarUpdateRequest request, String ownerPhone) {
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new AppException(ErrorCode.CAR_NOT_FOUND, carId));
+        User owner = userRepository.findByPhone(ownerPhone)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (car.getOwner() == null || !car.getOwner().getUserId().equals(owner.getUserId())) {
+            throw new AppException(ErrorCode.CAR_NOT_OWNER);
+        }
+
+        if (request.licensePlate() != null && !request.licensePlate().equals(car.getLicensePlate())) {
+            if (carRepository.existsByLicensePlate(request.licensePlate())) {
+                throw new AppException(ErrorCode.CAR_LICENSE_PLATE_EXISTS, request.licensePlate());
+            }
+            car.setLicensePlate(request.licensePlate());
+        }
+        if (request.name() != null) car.setName(request.name());
+        if (request.brand() != null) car.setBrand(request.brand());
+        if (request.model() != null) car.setModel(request.model());
+        if (request.pricePerDay() != null) car.setPricePerDay(request.pricePerDay());
+        if (request.seats() != null) car.setSeats(request.seats());
+        if (request.transmission() != null) car.setTransmission(request.transmission());
+        if (request.fuelType() != null) car.setFuelType(request.fuelType());
+        if (request.location() != null) car.setLocation(request.location());
+
+        Car updated = carRepository.save(car);
+        return mapToResponse(updated, resolvePrimaryImageUrl(updated.getCarId()));
+    }
+
+    @Override
+    @Transactional
+    public void deleteCarByOwner(Long carId, String ownerPhone) {
+        Car car = carRepository.findById(carId)
+                .orElseThrow(() -> new AppException(ErrorCode.CAR_NOT_FOUND, carId));
+        User owner = userRepository.findByPhone(ownerPhone)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        if (car.getOwner() == null || !car.getOwner().getUserId().equals(owner.getUserId())) {
+            throw new AppException(ErrorCode.CAR_NOT_OWNER);
+        }
+        car.setStatus(CarStatus.DISABLED);
+        carRepository.save(car);
     }
 }
 

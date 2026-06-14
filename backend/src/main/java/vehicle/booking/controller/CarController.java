@@ -19,6 +19,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -116,5 +118,15 @@ public class CarController {
             @PathVariable Long carId,
             @RequestBody CarLocationUpdateRequest request) {
         return ResponseEntity.ok(new ApiResponse<>(true, "Cap nhat vi tri xe thanh cong", carService.updateCarLocation(carId, request)));
+    }
+
+    @GetMapping("/nearby")
+    public ResponseEntity<ApiResponse<List<CarSummaryResponse>>> getNearbyCars(
+            @RequestParam Double lat,
+            @RequestParam Double lng,
+            @RequestParam(defaultValue = "10") Double radius,
+            @RequestParam(defaultValue = "true") boolean onlyAvailable) {
+        List<CarSummaryResponse> cars = carService.getNearbyCars(lat, lng, radius, onlyAvailable);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy danh sách xe gần đây thành công", cars));
     }
 }
