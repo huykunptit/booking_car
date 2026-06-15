@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'dio_provider.dart';
+
 class GeocodingResult {
   final String address;
   final double lat;
@@ -15,51 +17,48 @@ class GeocodingResult {
 }
 
 class GeocodingService {
-  static const String _apiKey = '93f3886be392ad743f665ac2200b40b7';
-  
+  // All geo calls proxy through the backend → no CORS, no token exposure.
   static final _dio = Dio(BaseOptions(
-    baseUrl: 'https://maps.vietmap.vn/api',
-    headers: {
-      'User-Agent': 'GoRento/1.0 (vehicle.booking.system)',
-    },
+    baseUrl: baseUrl,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 10),
   ));
 
+  /// Reverse geocode lat/lng → human-readable address string.
   static Future<String> reverseGeocode(double lat, double lng) async {
     try {
-      final response = await _dio.get('/reverse/v4', queryParameters: {
-        'apikey': _apiKey,
-        'lat': lat,
-        'lng': lng,
-        'display_type': 6,
-      });
-      final data = response.data as List<dynamic>;
-      if (data.isNotEmpty) {
-        return data[0]['display']?.toString() ??
+      final resp = await _dio.get(
+        '/api/geo/reverse',
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+      final data = resp.data;
+      if (data is Map) {
+        // Mapbox returns {display_name: "..."}
+        return data['display_name']?.toString() ??
             '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
       }
-      return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
-    } catch (_) {
-      return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
-    }
+    } catch (_) {}
+    return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
   }
 
+  /// Search by text → suggestions with coordinates included.
+  /// Backend flattens Mapbox GeoJSON to [{place_name, lat, lon, id}].
   static Future<List<GeocodingResult>> search(String query) async {
     if (query.trim().isEmpty) return [];
     try {
-      final response = await _dio.get('/autocomplete/v4', queryParameters: {
-        'apikey': _apiKey,
-        'text': query.trim(),
-        'display_type': 6,
-      });
-      final data = response.data as List<dynamic>;
+      final resp = await _dio.get(
+        '/api/geo/search',
+        queryParameters: {'text': query.trim()},
+      );
+      final data = resp.data as List<dynamic>;
       return data.map((item) {
+        final lat = (item['lat'] as num?)?.toDouble() ?? 0.0;
+        final lng = (item['lon'] as num?)?.toDouble() ?? 0.0;
         return GeocodingResult(
-          address: item['display']?.toString() ?? '',
-          lat: 0.0, // Autocomplete v4 does not return lat/lng directly
-          lng: 0.0,
-          refId: item['ref_id']?.toString(),
+          address: item['place_name']?.toString() ?? '',
+          lat: lat,
+          lng: lng,
+          refId: item['id']?.toString(),
         );
       }).toList();
     } catch (_) {
@@ -67,23 +66,5 @@ class GeocodingService {
     }
   }
 
-  static Future<GeocodingResult?> resolvePlace(String refId) async {
-    try {
-      final response = await _dio.get('/place/v4', queryParameters: {
-        'apikey': _apiKey,
-        'refid': refId,
-      });
-      final data = response.data as Map<String, dynamic>;
-      final lat = double.tryParse(data['lat']?.toString() ?? '') ?? 0.0;
-      final lng = double.tryParse(data['lng']?.toString() ?? '') ?? 0.0;
-      return GeocodingResult(
-        address: data['display']?.toString() ?? '',
-        lat: lat,
-        lng: lng,
-        refId: refId,
-      );
-    } catch (_) {
-      return null;
-    }
-  }
+  static Future<GeocodingResult?> resolvePlace(String refId) async => null;
 }

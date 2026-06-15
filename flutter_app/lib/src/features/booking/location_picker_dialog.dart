@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../core/network/geocoding_service.dart';
@@ -60,7 +61,8 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
   bool _showSuggestions = false;
   List<GeocodingResult> _suggestions = [];
   Timer? _debounce;
-  bool _useSatellite = false; // Chọn bản đồ vệ tinh VietMap hoặc bản đồ đường phố CartoDB
+  bool _useSatellite = false;
+  bool _isLocating = false;
 
   static const LatLng _defaultCenter = LatLng(21.0285, 105.8542); // Hà Nội
 
@@ -81,6 +83,58 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
     _searchFocus.dispose();
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLocating = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vui lòng bật dịch vụ vị trí')),
+          );
+        }
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever || permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ứng dụng cần quyền truy cập vị trí')),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final point = LatLng(pos.latitude, pos.longitude);
+      _mapController.move(point, 16.0);
+      setState(() {
+        _selected = point;
+        _isGeocoding = true;
+      });
+      final address = await GeocodingService.reverseGeocode(pos.latitude, pos.longitude);
+      if (mounted) {
+        setState(() {
+          _selectedAddress = address;
+          _isGeocoding = false;
+          _searchController.text = address;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể lấy vị trí hiện tại')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -117,28 +171,19 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
   }
 
   Future<void> _selectSuggestion(GeocodingResult result) async {
-    LatLng point;
-    String address = result.address;
-    
-    if (result.refId != null && (result.lat == 0.0 || result.lng == 0.0)) {
-      setState(() => _isGeocoding = true);
-      final resolved = await GeocodingService.resolvePlace(result.refId!);
+    final LatLng point;
+    final String address;
+
+    if (result.lat == 0.0 || result.lng == 0.0) {
       if (mounted) {
-        setState(() => _isGeocoding = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể lấy tọa độ của địa điểm này')),
+        );
       }
-      if (resolved != null) {
-        point = LatLng(resolved.lat, resolved.lng);
-        address = resolved.address;
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể lấy tọa độ của địa điểm này')),
-          );
-        }
-        return;
-      }
+      return;
     } else {
       point = LatLng(result.lat, result.lng);
+      address = result.address;
     }
 
     setState(() {
@@ -329,6 +374,24 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
                         ),
                       ),
                     ),
+                      // My location button
+                      Positioned(
+                        bottom: 72,
+                        right: 16,
+                        child: FloatingActionButton.small(
+                          heroTag: 'my_location',
+                          backgroundColor: cs.surfaceContainerLowest,
+                          foregroundColor: cs.primary,
+                          onPressed: _isLocating ? null : _getCurrentLocation,
+                          child: _isLocating
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                                )
+                              : const Icon(Icons.my_location_rounded),
+                        ),
+                      ),
                       // Style toggle
                       Positioned(
                         bottom: 16,

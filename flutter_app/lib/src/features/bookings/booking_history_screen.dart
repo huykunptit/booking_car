@@ -134,7 +134,7 @@ class BookingHistoryScreen extends ConsumerWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-                      onTap: () => context.push('/bookings/${booking['id']}'),
+                      onTap: () => context.push('/bookings/${booking['bookingId']}'),
                       child: Padding(
                         padding: const EdgeInsets.all(20),
                         child: Column(

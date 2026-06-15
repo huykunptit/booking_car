@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -37,19 +38,35 @@ public class VerificationController {
                 .orElse(null);
         if (v == null) {
             return ResponseEntity.ok(new ApiResponse<>(true, "Chưa xác minh",
-                    Map.of("status", "UNVERIFIED", "cccdVerified", false, "licenseVerified", false)));
+                    Map.of("status", "UNVERIFIED",
+                            "cccdVerified", false,
+                            "licenseVerified", false,
+                            "cccdBackVerified", false,
+                            "licenseBackVerified", false,
+                            "faceMatchVerified", false,
+                            "faceMatchScore", 0.0,
+                            "livenessVerified", false,
+                            "livenessScore", 0.0)));
         }
-        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy trạng thái thành công", Map.of(
-                "status", v.getStatus(),
-                "cccdVerified", Boolean.TRUE.equals(v.getCccdVerified()),
-                "cccdSpoofed", Boolean.TRUE.equals(v.getCccdSpoofed()),
-                "licenseVerified", Boolean.TRUE.equals(v.getLicenseVerified()),
-                "licenseSpoofed", Boolean.TRUE.equals(v.getLicenseSpoofed()),
-                "fullName", v.getFullName() != null ? v.getFullName() : "",
-                "cccdNumber", v.getCccdNumber() != null ? v.getCccdNumber() : "",
-                "birthDay", v.getBirthDay() != null ? v.getBirthDay() : "",
-                "licenseClass", v.getLicenseClass() != null ? v.getLicenseClass() : ""
-        )));
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", v.getStatus());
+        result.put("cccdVerified", Boolean.TRUE.equals(v.getCccdVerified()));
+        result.put("cccdSpoofed", Boolean.TRUE.equals(v.getCccdSpoofed()));
+        result.put("licenseVerified", Boolean.TRUE.equals(v.getLicenseVerified()));
+        result.put("licenseSpoofed", Boolean.TRUE.equals(v.getLicenseSpoofed()));
+        result.put("cccdBackVerified", Boolean.TRUE.equals(v.getCccdBackVerified()));
+        result.put("cccdBackSpoofed", Boolean.TRUE.equals(v.getCccdBackSpoofed()));
+        result.put("licenseBackVerified", Boolean.TRUE.equals(v.getLicenseBackVerified()));
+        result.put("licenseBackSpoofed", Boolean.TRUE.equals(v.getLicenseBackSpoofed()));
+        result.put("faceMatchVerified", Boolean.TRUE.equals(v.getFaceMatchVerified()));
+        result.put("faceMatchScore", v.getFaceMatchScore() != null ? v.getFaceMatchScore() : 0.0);
+        result.put("livenessVerified", Boolean.TRUE.equals(v.getLivenessVerified()));
+        result.put("livenessScore", v.getLivenessScore() != null ? v.getLivenessScore() : 0.0);
+        result.put("fullName", v.getFullName() != null ? v.getFullName() : "");
+        result.put("cccdNumber", v.getCccdNumber() != null ? v.getCccdNumber() : "");
+        result.put("birthDay", v.getBirthDay() != null ? v.getBirthDay() : "");
+        result.put("licenseClass", v.getLicenseClass() != null ? v.getLicenseClass() : "");
+        return ResponseEntity.ok(new ApiResponse<>(true, "Lấy trạng thái thành công", result));
     }
 
     @PostMapping("/cccd")
@@ -98,6 +115,50 @@ public class VerificationController {
                        "id", v.getCccdNumber() != null ? v.getCccdNumber() : "")));
     }
 
+    @PostMapping("/cccd/back")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyCccdBack(
+            @RequestParam("image") MultipartFile image,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getUser(userDetails);
+
+        // Spoof check on back side
+        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        boolean isSpoofed = false;
+        if (spoofResult.get("data") instanceof Map<?,?> sd) {
+            Object spoofVal = sd.get("is_fake");
+            if (spoofVal == null) spoofVal = sd.get("is_spoof");
+            isSpoofed = Boolean.TRUE.equals(spoofVal);
+        }
+
+        // Attempt OCR to extract barcode number from back side
+        Map<String, Object> ocrResult = viettelAiService.ocrIdCard(image);
+        boolean ocrOk = Integer.valueOf(200).equals(ocrResult.get("code"));
+        String backNumber = null;
+        if (ocrOk && ocrResult.get("data") instanceof Map<?,?> d) {
+            backNumber = str(d, "id");
+            if (backNumber == null) backNumber = str(d, "barcode");
+        }
+
+        UserVerification v = verificationRepository.findByUserUserId(user.getUserId())
+                .orElseGet(() -> { UserVerification nv = new UserVerification(); nv.setUser(user); return nv; });
+
+        v.setCccdBackSpoofed(isSpoofed);
+        v.setCccdBackVerified(!isSpoofed);
+        if (backNumber != null) {
+            v.setCccdBackNumber(backNumber);
+        }
+
+        updateOverallStatus(v);
+        verificationRepository.save(v);
+
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                !isSpoofed ? "Xác minh mặt sau CCCD thành công" : "Ảnh mặt sau CCCD không hợp lệ",
+                Map.of("ocrSuccess", ocrOk,
+                       "isSpoofed", isSpoofed,
+                       "cccdBackVerified", !isSpoofed,
+                       "cccdBackNumber", backNumber != null ? backNumber : "")));
+    }
+
     @PostMapping("/license")
     public ResponseEntity<ApiResponse<Map<String, Object>>> verifyLicense(
             @RequestParam("image") MultipartFile image,
@@ -140,6 +201,89 @@ public class VerificationController {
                        "licenseClass", v.getLicenseClass() != null ? v.getLicenseClass() : "")));
     }
 
+    @PostMapping("/license/back")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyLicenseBack(
+            @RequestParam("image") MultipartFile image,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getUser(userDetails);
+
+        // Spoof check on back side
+        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        boolean isSpoofed = false;
+        if (spoofResult.get("data") instanceof Map<?,?> sd) {
+            Object spoofVal = sd.get("is_fake");
+            if (spoofVal == null) spoofVal = sd.get("is_spoof");
+            isSpoofed = Boolean.TRUE.equals(spoofVal);
+        }
+
+        UserVerification v = verificationRepository.findByUserUserId(user.getUserId())
+                .orElseGet(() -> { UserVerification nv = new UserVerification(); nv.setUser(user); return nv; });
+
+        v.setLicenseBackSpoofed(isSpoofed);
+        v.setLicenseBackVerified(!isSpoofed);
+
+        updateOverallStatus(v);
+        verificationRepository.save(v);
+
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                !isSpoofed ? "Xác minh mặt sau bằng lái thành công" : "Ảnh mặt sau bằng lái không hợp lệ",
+                Map.of("isSpoofed", isSpoofed,
+                       "licenseBackVerified", !isSpoofed)));
+    }
+
+    @PostMapping("/face")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyFace(
+            @RequestParam("selfie") MultipartFile selfie,
+            @RequestParam("idImage") MultipartFile idImage,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getUser(userDetails);
+
+        // 1. Liveness check
+        Map<String, Object> livenessResult = viettelAiService.livenessCheck(selfie);
+        boolean isLive = false;
+        float livenessScore = 0f;
+        if (livenessResult.get("data") instanceof Map<?,?> ld) {
+            Object liveVal = ld.get("is_live");
+            isLive = Boolean.TRUE.equals(liveVal);
+            Object scoreVal = ld.get("liveness_score");
+            if (scoreVal instanceof Number num) {
+                livenessScore = num.floatValue();
+            }
+        }
+
+        // 2. Face matching
+        Map<String, Object> faceMatchResult = viettelAiService.faceMatch(selfie, idImage);
+        float faceMatchScore = 0f;
+        if (faceMatchResult.get("data") instanceof Map<?,?> fd) {
+            Object simVal = fd.get("similarity");
+            if (simVal == null) simVal = fd.get("score");
+            if (simVal instanceof Number num) {
+                faceMatchScore = num.floatValue();
+            }
+        }
+
+        boolean faceMatchVerified = faceMatchScore >= 0.75f && isLive;
+
+        UserVerification v = verificationRepository.findByUserUserId(user.getUserId())
+                .orElseGet(() -> { UserVerification nv = new UserVerification(); nv.setUser(user); return nv; });
+
+        v.setLivenessVerified(isLive);
+        v.setLivenessScore(livenessScore);
+        v.setFaceMatchScore(faceMatchScore);
+        v.setFaceMatchVerified(faceMatchVerified);
+
+        updateOverallStatus(v);
+        verificationRepository.save(v);
+
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                faceMatchVerified ? "Xác minh khuôn mặt thành công" : "Xác minh khuôn mặt không thành công",
+                Map.of("ocrSuccess", true,
+                       "isLive", isLive,
+                       "livenessScore", livenessScore,
+                       "faceMatchScore", faceMatchScore,
+                       "faceMatchVerified", faceMatchVerified)));
+    }
+
     private User getUser(UserDetails ud) {
         return userRepository.findByPhone(ud.getUsername())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -153,11 +297,24 @@ public class VerificationController {
     private void updateOverallStatus(UserVerification v) {
         boolean cccdOk = Boolean.TRUE.equals(v.getCccdVerified()) && !Boolean.TRUE.equals(v.getCccdSpoofed());
         boolean licOk  = Boolean.TRUE.equals(v.getLicenseVerified()) && !Boolean.TRUE.equals(v.getLicenseSpoofed());
-        if (cccdOk && licOk) v.setStatus(VerificationStatus.VERIFIED);
-        else if (Boolean.TRUE.equals(v.getCccdSpoofed()) || Boolean.TRUE.equals(v.getLicenseSpoofed()))
+        boolean faceOk = Boolean.TRUE.equals(v.getFaceMatchVerified());
+
+        // Reject immediately if any spoof detected
+        if (Boolean.TRUE.equals(v.getCccdSpoofed()) || Boolean.TRUE.equals(v.getLicenseSpoofed())
+                || Boolean.TRUE.equals(v.getCccdBackSpoofed()) || Boolean.TRUE.equals(v.getLicenseBackSpoofed())) {
             v.setStatus(VerificationStatus.REJECTED);
-        else if (Boolean.TRUE.equals(v.getCccdVerified()) || Boolean.TRUE.equals(v.getLicenseVerified()))
+            return;
+        }
+
+        if (cccdOk && licOk && faceOk) {
+            v.setStatus(VerificationStatus.VERIFIED);
+        } else if (cccdOk || licOk || faceOk
+                || Boolean.TRUE.equals(v.getCccdBackVerified())
+                || Boolean.TRUE.equals(v.getLicenseBackVerified())
+                || Boolean.TRUE.equals(v.getLivenessVerified())) {
             v.setStatus(VerificationStatus.PENDING);
-        else v.setStatus(VerificationStatus.UNVERIFIED);
+        } else {
+            v.setStatus(VerificationStatus.UNVERIFIED);
+        }
     }
 }

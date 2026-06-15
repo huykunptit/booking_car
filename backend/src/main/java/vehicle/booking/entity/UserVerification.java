@@ -66,6 +66,36 @@ public class UserVerification {
     @Column(name = "license_spoofed")
     private Boolean licenseSpoofed = false;
 
+    // CCCD back-side fields
+    @Column(name = "cccd_back_verified")
+    private Boolean cccdBackVerified = false;
+
+    @Column(name = "cccd_back_spoofed")
+    private Boolean cccdBackSpoofed = false;
+
+    @Column(name = "cccd_back_number")
+    private String cccdBackNumber;
+
+    // Driver license back-side fields
+    @Column(name = "license_back_verified")
+    private Boolean licenseBackVerified = false;
+
+    @Column(name = "license_back_spoofed")
+    private Boolean licenseBackSpoofed = false;
+
+    // Face match / liveness fields
+    @Column(name = "face_match_verified")
+    private Boolean faceMatchVerified = false;
+
+    @Column(name = "face_match_score")
+    private Float faceMatchScore;
+
+    @Column(name = "liveness_verified")
+    private Boolean livenessVerified = false;
+
+    @Column(name = "liveness_score")
+    private Float livenessScore;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private VerificationStatus status = VerificationStatus.UNVERIFIED;
