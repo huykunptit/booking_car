@@ -27,6 +27,22 @@ public interface CarRepository extends JpaRepository<Car, Long> {
 
     @Query("""
     SELECT c FROM Car c
+    WHERE c.latitude IS NOT NULL
+      AND c.longitude IS NOT NULL
+      AND c.latitude  BETWEEN :minLat AND :maxLat
+      AND c.longitude BETWEEN :minLng AND :maxLng
+      AND (:onlyAvailable = false OR c.status = 'AVAILABLE')
+    """)
+    List<Car> findNearby(
+            @Param("minLat") BigDecimal minLat,
+            @Param("maxLat") BigDecimal maxLat,
+            @Param("minLng") BigDecimal minLng,
+            @Param("maxLng") BigDecimal maxLng,
+            @Param("onlyAvailable") boolean onlyAvailable
+    );
+
+    @Query("""
+    SELECT c FROM Car c
     WHERE (:brand IS NULL OR LOWER(c.brand) LIKE LOWER(CONCAT('%', :brand, '%')))
       AND (:name IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')))
       AND (:location IS NULL OR LOWER(c.location) LIKE LOWER(CONCAT('%', :location, '%')))
@@ -48,6 +64,19 @@ public interface CarRepository extends JpaRepository<Car, Long> {
             @Param("filterBySeats") boolean filterBySeats,
             @Param("seats")         List<Integer> seats,
             @Param("onlyAvailable") boolean onlyAvailable,
+            Pageable pageable
+    );
+
+    Page<Car> findByOwnerUserId(Long ownerId, Pageable pageable);
+
+    @Query("""
+    SELECT c FROM Car c
+    WHERE c.owner.userId = :ownerId
+      AND (:status IS NULL OR c.status = :status)
+    """)
+    Page<Car> findByOwnerUserIdAndStatus(
+            @Param("ownerId") Long ownerId,
+            @Param("status") CarStatus status,
             Pageable pageable
     );
 }

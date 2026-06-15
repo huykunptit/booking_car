@@ -43,4 +43,12 @@ public interface CarService {
     CarAvailabilityResponse getCarAvailability(Long carId);
 
     CarResponse updateCarLocation(Long carId, vehicle.booking.dto.request.CarLocationUpdateRequest request);
+
+    List<CarSummaryResponse> getNearbyCars(Double lat, Double lng, Double radiusKm, boolean onlyAvailable);
+
+    // Owner-facing methods
+    vehicle.booking.dto.response.CarResponse createCarByOwner(vehicle.booking.dto.request.CarCreateRequest request, String ownerPhone);
+    org.springframework.data.domain.Page<vehicle.booking.dto.response.CarSummaryResponse> getMyOwnerCars(String ownerPhone, org.springframework.data.domain.Pageable pageable);
+    vehicle.booking.dto.response.CarResponse updateCarByOwner(Long carId, vehicle.booking.dto.request.CarUpdateRequest request, String ownerPhone);
+    void deleteCarByOwner(Long carId, String ownerPhone);
 }

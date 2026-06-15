@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>GoRento cần truy cập thư viện ảnh để upload giấy tờ xác minh</string>
+	<key>NSCameraUsageDescription</key>
+	<string>GoRento cần truy cập camera để chụp giấy tờ xác minh</string>
 </dict>
 </plist>

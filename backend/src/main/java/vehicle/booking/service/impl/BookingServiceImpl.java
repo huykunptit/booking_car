@@ -13,8 +13,10 @@ import vehicle.booking.repository.BookingRepository;
 import vehicle.booking.repository.CarRepository;
 import vehicle.booking.repository.InvoiceRepository;
 import vehicle.booking.repository.UserRepository;
+import vehicle.booking.entity.enums.NotificationType;
 import vehicle.booking.service.BookingService;
 import vehicle.booking.service.InvoiceService;
+import vehicle.booking.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -48,6 +50,7 @@ public class BookingServiceImpl implements BookingService {
     private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
     private final InvoiceService invoiceService;
+    private final NotificationService notificationService;
 
     /**
      * Tạo đơn đặt xe mới.
@@ -85,12 +88,12 @@ public class BookingServiceImpl implements BookingService {
         booking.setStartDate(request.startDate());
         booking.setEndDate(request.endDate());
         booking.setTotalPrice(totalPrice);
-        booking.setPickupAddress(null);
-        booking.setPickupLatitude(null);
-        booking.setPickupLongitude(null);
-        booking.setDropoffAddress(null);
-        booking.setDropoffLatitude(null);
-        booking.setDropoffLongitude(null);
+        booking.setPickupAddress(request.pickupAddress());
+        booking.setPickupLatitude(request.pickupLatitude());
+        booking.setPickupLongitude(request.pickupLongitude());
+        booking.setDropoffAddress(request.dropoffAddress());
+        booking.setDropoffLatitude(request.dropoffLatitude());
+        booking.setDropoffLongitude(request.dropoffLongitude());
         booking.setStatus(BookingStatus.PENDING);
 
         booking = bookingRepository.save(booking);
@@ -99,6 +102,10 @@ public class BookingServiceImpl implements BookingService {
         carRepository.save(car);
 
         invoiceService.createInvoiceForBooking(booking);
+        notificationService.send(user,
+                "Đặt xe thành công",
+                "Bạn đã đặt xe " + car.getBrand() + " " + car.getName() + " từ " + booking.getStartDate() + " đến " + booking.getEndDate(),
+                NotificationType.BOOKING_CREATED, booking.getBookingId());
         return mapToResponse(booking);
     }
 
@@ -165,6 +172,11 @@ public class BookingServiceImpl implements BookingService {
             carRepository.save(car);
         }
 
+        notificationService.send(booking.getUser(),
+                "Booking đã bị hủy",
+                "Đơn đặt xe #" + booking.getBookingId() + " đã được hủy thành công.",
+                NotificationType.BOOKING_CANCELLED, booking.getBookingId());
+
         return mapToResponse(booking);
     }
 
@@ -188,6 +200,11 @@ public class BookingServiceImpl implements BookingService {
             car.setStatus(CarStatus.BOOKED);
             carRepository.save(car);
         }
+
+        notificationService.send(booking.getUser(),
+                "Booking đã được xác nhận",
+                "Đơn đặt xe #" + booking.getBookingId() + " đã được xác nhận. Hãy chuẩn bị cho chuyến đi của bạn!",
+                NotificationType.BOOKING_CONFIRMED, booking.getBookingId());
 
         return mapToResponse(booking);
     }
@@ -229,6 +246,11 @@ public class BookingServiceImpl implements BookingService {
             car.setStatus(CarStatus.AVAILABLE);
             carRepository.save(car);
         }
+
+        notificationService.send(booking.getUser(),
+                "Chuyến đi hoàn tất",
+                "Cảm ơn bạn đã sử dụng GoRento! Đơn #" + booking.getBookingId() + " đã hoàn thành. Hãy để lại đánh giá nhé.",
+                NotificationType.BOOKING_COMPLETED, booking.getBookingId());
 
         return mapToResponse(booking);
     }

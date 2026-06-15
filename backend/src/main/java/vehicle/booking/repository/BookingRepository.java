@@ -48,7 +48,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("""
     select b from Booking b
-    where b.car.carId = :carId 
+    where b.car.carId = :carId
         and b.status in :statuses
         and b.endDate >= :today
     """)
@@ -56,5 +56,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("carId") Long carId,
             @Param("today") LocalDate today,
             @Param("statuses") List<BookingStatus> statuses);
+
+    Page<Booking> findByCarOwnerUserId(Long ownerId, Pageable pageable);
+
+    @Query("""
+    SELECT COALESCE(SUM(b.totalPrice), 0)
+    FROM Booking b
+    WHERE b.car.owner.userId = :ownerId
+      AND b.status = 'COMPLETED'
+    """)
+    java.math.BigDecimal sumCompletedEarningsByOwnerId(@Param("ownerId") Long ownerId);
+
+    @Query("SELECT COUNT(DISTINCT b.car.carId) FROM Booking b WHERE b.car.owner.userId = :ownerId")
+    long countDistinctCarsByOwnerId(@Param("ownerId") Long ownerId);
 }
 

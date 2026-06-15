@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../network/dio_provider.dart';
-import '../storage/secure_storage_provider.dart';
 import 'auth_tokens.dart';
 
 class AuthRepository {
@@ -19,6 +18,10 @@ class AuthRepository {
   Future<AuthTokens> register({required String phone, required String password, required String otp}) async {
     final data = await _postAuth('/api/auth/register', {'phone': phone, 'password': password, 'otp': otp});
     return _toTokens(data);
+  }
+
+  Future<void> sendOtp({required String phone}) async {
+    await _dio.post('/api/auth/phone/send-otp', data: {'phone': phone});
   }
 
   Future<void> forgotPassword({required String email}) async {

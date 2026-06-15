@@ -1,10 +1,22 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_provider.dart';
 import '../storage/secure_storage_provider.dart';
 
-const baseUrl = 'http://localhost:8080';
+final String baseUrl = () {
+  if (kIsWeb) {
+    return 'http://localhost:8080';
+  }
+  if (kDebugMode) {
+    return defaultTargetPlatform == TargetPlatform.android
+        ? 'http://10.0.2.2:8080'
+        : 'http://localhost:8080';
+  }
+  return 'http://localhost:8080';
+}();
+
 const accessTokenKey = 'access_token';
 const refreshTokenKey = 'refresh_token';
 

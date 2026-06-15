@@ -14,6 +14,7 @@ import java.util.List;
 import vehicle.booking.entity.enums.CarStatus;
 import vehicle.booking.entity.enums.FuelType;
 import vehicle.booking.entity.enums.Transmission;
+import vehicle.booking.entity.User;
 
 @Entity
 @Table(name = "car")
@@ -78,6 +79,10 @@ public class Car {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
     @OneToMany(mappedBy = "car", fetch = FetchType.LAZY)
     private List<CarImage> images = new ArrayList<>();

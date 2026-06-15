@@ -20,5 +20,8 @@ public class TwilioProperties {
     public boolean isTwilioMode() {
         return mode == TwilioMode.TWILIO;
     }
+    public boolean isFirebaseMode() {
+        return mode == TwilioMode.FIREBASE;
+    }
 
 }

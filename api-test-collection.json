@@ -1,0 +1,531 @@
+{
+  "info": {
+    "name": "GoRento — Vehicle Booking System API",
+    "_postman_id": "8f4d0f5f-5f72-4f71-9f60-vehicle-booking",
+    "description": "Complete API test collection for GoRento vehicle booking system. Includes Auth, Cars, Bookings, eKYC Verification, Owner, Invoices, Payment, Reviews, Notifications, and User endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+84987654321\",\n  \"password\": \"Password123!\"\n}" }
+          }
+        },
+        {
+          "name": "Send Phone OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/phone/send-otp", "host": ["{{baseUrl}}"], "path": ["api", "auth", "phone", "send-otp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+84912345678\"\n}" }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+84912345678\",\n  \"password\": \"Password123!\",\n  \"otp\": \"123456\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/user/me", "host": ["{{baseUrl}}"], "path": ["api", "user", "me"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nguyen Van A\",\n  \"email\": \"user@example.com\",\n  \"driveLicense\": \"B2\"\n}" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/user/change-password", "host": ["{{baseUrl}}"], "path": ["api", "user", "change-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"oldPassword\": \"Password123!\",\n  \"newPassword\": \"NewPassword123!\",\n  \"confirmPassword\": \"NewPassword123!\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cars",
+      "item": [
+        {
+          "name": "List Cars",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars?page=0&size=12&onlyAvailable=true", "host": ["{{baseUrl}}"], "path": ["api", "cars"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "12" },
+              { "key": "onlyAvailable", "value": "true" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Car Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}"] }
+          }
+        },
+        {
+          "name": "Check Car Availability",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/availability?startDate=2026-07-01&endDate=2026-07-03", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "availability"], "query": [
+              { "key": "startDate", "value": "2026-07-01" },
+              { "key": "endDate", "value": "2026-07-03" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Car Images",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/images", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "images"] }
+          }
+        },
+        {
+          "name": "Get Car Primary Image",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/images/primary", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "images", "primary"] }
+          }
+        },
+        {
+          "name": "Update Car Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/location", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "location"] },
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 10.776889,\n  \"longitude\": 106.700806,\n  \"address\": \"Quận 1, TP.HCM\",\n  \"source\": \"gps\"\n}" }
+          }
+        },
+        {
+          "name": "Update Car Tracking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/tracking", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "tracking"] },
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 10.776889,\n  \"longitude\": 106.700806,\n  \"speed\": 45.5,\n  \"source\": \"gps\"\n}" }
+          }
+        },
+        {
+          "name": "Get Car Current Tracking",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/tracking", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "tracking"] }
+          }
+        },
+        {
+          "name": "Get Car Tracking History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/cars/{{carId}}/tracking/history", "host": ["{{baseUrl}}"], "path": ["api", "cars", "{{carId}}", "tracking", "history"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/bookings", "host": ["{{baseUrl}}"], "path": ["api", "bookings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"carId\": {{carId}},\n  \"startDate\": \"2026-07-01\",\n  \"endDate\": \"2026-07-03\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/bookings/my-bookings?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "my-bookings"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Booking Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/bookings/{{bookingId}}", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "{{bookingId}}"] }
+          }
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/bookings/{{bookingId}}/cancel", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "{{bookingId}}", "cancel"] }
+          }
+        },
+        {
+          "name": "Update Pickup Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/bookings/{{bookingId}}/pickup-location", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "{{bookingId}}", "pickup-location"] },
+            "body": { "mode": "raw", "raw": "{\n  \"address\": \"Sân bay Tân Sơn Nhất\",\n  \"latitude\": 10.818463,\n  \"longitude\": 106.652595\n}" }
+          }
+        },
+        {
+          "name": "Update Dropoff Location",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/bookings/{{bookingId}}/dropoff-location", "host": ["{{baseUrl}}"], "path": ["api", "bookings", "{{bookingId}}", "dropoff-location"] },
+            "body": { "mode": "raw", "raw": "{\n  \"address\": \"Quận 7, TP.HCM\",\n  \"latitude\": 10.738361,\n  \"longitude\": 106.721551\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "eKYC Verification",
+      "item": [
+        {
+          "name": "Get Verification Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/verification/status", "host": ["{{baseUrl}}"], "path": ["api", "verification", "status"] }
+          }
+        },
+        {
+          "name": "Upload CCCD",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/verification/cccd", "host": ["{{baseUrl}}"], "path": ["api", "verification", "cccd"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "/path/to/cccd.jpg", "description": "Ảnh CCCD mặt trước" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload License (GPLX)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/verification/license", "host": ["{{baseUrl}}"], "path": ["api", "verification", "license"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "/path/to/license.jpg", "description": "Ảnh GPLX mặt trước" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Owner",
+      "item": [
+        {
+          "name": "Get Owner Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/dashboard", "host": ["{{baseUrl}}"], "path": ["api", "owner", "dashboard"] }
+          }
+        },
+        {
+          "name": "List My Cars",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/cars?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "owner", "cars"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Create Car",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/owner/cars", "host": ["{{baseUrl}}"], "path": ["api", "owner", "cars"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Vios G\",\n  \"brand\": \"Toyota\",\n  \"model\": \"2024\",\n  \"licensePlate\": \"30A-12345\",\n  \"pricePerDay\": 800000,\n  \"seats\": 5,\n  \"transmission\": \"AUTOMATIC\",\n  \"fuelType\": \"GASOLINE\",\n  \"location\": \"Quận 1, TP.HCM\"\n}" }
+          }
+        },
+        {
+          "name": "Update Car",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/owner/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "owner", "cars", "{{carId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Vios G CVT\",\n  \"pricePerDay\": 850000\n}" }
+          }
+        },
+        {
+          "name": "Delete (Hide) Car",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/cars/{{carId}}", "host": ["{{baseUrl}}"], "path": ["api", "owner", "cars", "{{carId}}"] }
+          }
+        },
+        {
+          "name": "List Bookings for My Cars",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/bookings?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "owner", "bookings"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Confirm Booking",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/bookings/{{bookingId}}/confirm", "host": ["{{baseUrl}}"], "path": ["api", "owner", "bookings", "{{bookingId}}", "confirm"] }
+          }
+        },
+        {
+          "name": "Reject Booking",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/owner/bookings/{{bookingId}}/reject", "host": ["{{baseUrl}}"], "path": ["api", "owner", "bookings", "{{bookingId}}", "reject"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        {
+          "name": "Get My Invoices",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/invoices/my-invoices?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "invoices", "my-invoices"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Invoice Detail",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/invoices/{{invoiceId}}", "host": ["{{baseUrl}}"], "path": ["api", "invoices", "{{invoiceId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment (VNPay)",
+      "item": [
+        {
+          "name": "Create Payment URL",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/payments/vnpay/create/{{bookingId}}", "host": ["{{baseUrl}}"], "path": ["api", "payments", "vnpay", "create", "{{bookingId}}"] }
+          }
+        },
+        {
+          "name": "Payment Return (Callback)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/payments/vnpay/return?vnp_ResponseCode=00&vnp_TxnRef=1_1234567890", "host": ["{{baseUrl}}"], "path": ["api", "payments", "vnpay", "return"], "query": [
+              { "key": "vnp_ResponseCode", "value": "00" },
+              { "key": "vnp_TxnRef", "value": "1_1234567890" }
+            ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/reviews/booking/{{bookingId}}", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "booking", "{{bookingId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Xe rất sạch sẽ, chủ xe nhiệt tình. Sẽ thuê lại!\"\n}" }
+          }
+        },
+        {
+          "name": "Get Car Reviews",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reviews/car/{{carId}}?page=0&size=10", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "car", "{{carId}}"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "10" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Booking Review",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reviews/booking/{{bookingId}}", "host": ["{{baseUrl}}"], "path": ["api", "reviews", "booking", "{{bookingId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["api", "notifications"], "query": [
+              { "key": "page", "value": "0" },
+              { "key": "size", "value": "20" }
+            ] }
+          }
+        },
+        {
+          "name": "Get Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/unread-count", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "unread-count"] }
+          }
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "read-all"] }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "{{notificationId}}", "read"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "carId", "value": "1" },
+    { "key": "bookingId", "value": "1" },
+    { "key": "invoiceId", "value": "1" },
+    { "key": "notificationId", "value": "1" }
+  ]
+}
