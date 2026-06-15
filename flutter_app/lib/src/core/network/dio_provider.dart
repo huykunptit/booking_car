@@ -5,10 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_provider.dart';
 import '../storage/secure_storage_provider.dart';
 
+const _definedBaseUrl = String.fromEnvironment('BASE_URL');
+
 final String baseUrl = () {
-  if (kIsWeb) {
-    return 'http://localhost:8080';
-  }
+  if (_definedBaseUrl.isNotEmpty) return _definedBaseUrl;
+  if (kIsWeb) return 'http://localhost:8080';
   if (kDebugMode) {
     return defaultTargetPlatform == TargetPlatform.android
         ? 'http://10.0.2.2:8080'
@@ -19,6 +20,9 @@ final String baseUrl = () {
 
 const accessTokenKey = 'access_token';
 const refreshTokenKey = 'refresh_token';
+
+const goongMapKey = String.fromEnvironment('GOONG_MAP_KEY');
+const goongApiKey = String.fromEnvironment('GOONG_API_KEY');
 
 final rawDioProvider = Provider<Dio>((ref) {
   return Dio(BaseOptions(

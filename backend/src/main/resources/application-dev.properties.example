@@ -25,9 +25,7 @@ springdoc.swagger-ui.tagsSorter=alpha
 springdoc.show-actuator=true
 spring.flyway.repair-on-migrate=true
 
-# Disable mail health check (SMTP credentials may be expired in dev)
 management.health.mail.enabled=false
-
 
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
@@ -41,8 +39,8 @@ spring.mail.properties.mail.smtp.timeout=5000
 spring.mail.properties.mail.smtp.writetimeout=5000
 
 cloudinary.cloud-name=YOUR_CLOUD_NAME
-cloudinary.api-key=YOUR_API_KEY
-cloudinary.api-secret=YOUR_API_SECRET
+cloudinary.api-key=YOUR_CLOUDINARY_API_KEY
+cloudinary.api-secret=YOUR_CLOUDINARY_API_SECRET
 cloudinary.folder=${CLOUDINARY_FOLDER:vehicle-booking/cars}
 
 twilio.mode=${TWILIO_MODE:mock}
@@ -52,9 +50,16 @@ twilio.verify-service-sid=${TWILIO_VERIFY_SERVICE_SID:}
 twilio.mock-otp=${TWILIO_MOCK_OTP:123456}
 firebase.service-account-path=${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
 
-# VNPay Configuration (Sandbox)
+# VNPay (Sandbox — đăng ký tại https://sandbox.vnpayment.vn/devreg/)
 vnpay.tmn-code=YOUR_TMN_CODE
 vnpay.hash-secret=YOUR_HASH_SECRET
 vnpay.pay-url=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-vnpay.return-url=http://localhost:8080/api/payments/vnpay/return
-vnpay.frontend-url=http://localhost:5173/my-bookings
+vnpay.return-url=https://YOUR_NGROK_URL/api/payments/vnpay/return
+vnpay.frontend-url=https://YOUR_NGROK_URL/my-bookings
+
+# Goong Maps (https://account.goong.io)
+# API Key — dùng cho geocoding / autocomplete / routing
+goong.api-key=YOUR_GOONG_API_KEY
+
+# ViettelAI eKYC (https://viettelai.vn)
+viettelai.token=YOUR_VIETTELAI_TOKEN

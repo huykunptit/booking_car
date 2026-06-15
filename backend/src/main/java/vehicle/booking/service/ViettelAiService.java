@@ -1,6 +1,7 @@
 package vehicle.booking.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,9 @@ import java.util.Map;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ViettelAiService {
 
-    private static final String TOKEN = "93f3886be392ad743f665ac2200b40b7";
+    @Value("${viettelai.token}")
+    private String token;
+
     private static final String BASE_URL = "https://viettelai.vn/ekyc";
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -26,10 +29,10 @@ public class ViettelAiService {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("image", resource(file));
             ResponseEntity<Map> resp = restTemplate.postForEntity(
-                    BASE_URL + "/id_card?token=" + TOKEN, entity(body), Map.class);
+                    BASE_URL + "/id_card?token=" + token, entity(body), Map.class);
             return resp.getBody() != null ? resp.getBody() : Map.of("code", 500);
-        } catch (IOException e) {
-            log.error("ViettelAI ocrIdCard error", e);
+        } catch (Exception e) {
+            log.error("ViettelAI ocrIdCard error: {}", e.getMessage());
             return Map.of("code", 500, "en_message", e.getMessage());
         }
     }
@@ -39,10 +42,10 @@ public class ViettelAiService {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", resource(file));
             ResponseEntity<Map> resp = restTemplate.postForEntity(
-                    BASE_URL + "/id_spoof_check?token=" + TOKEN, entity(body), Map.class);
+                    BASE_URL + "/id_spoof_check?token=" + token, entity(body), Map.class);
             return resp.getBody() != null ? resp.getBody() : Map.of("code", 500);
-        } catch (IOException e) {
-            log.error("ViettelAI spoofCheck error", e);
+        } catch (Exception e) {
+            log.error("ViettelAI spoofCheck error: {}", e.getMessage());
             return Map.of("code", 500, "en_message", e.getMessage());
         }
     }
@@ -53,10 +56,10 @@ public class ViettelAiService {
             body.add("face_image", resource(face));
             body.add("id_image", resource(idCard));
             ResponseEntity<Map> resp = restTemplate.postForEntity(
-                    BASE_URL + "/face_matching?token=" + TOKEN, entity(body), Map.class);
+                    BASE_URL + "/face_matching?token=" + token, entity(body), Map.class);
             return resp.getBody() != null ? resp.getBody() : Map.of("code", 500);
-        } catch (IOException e) {
-            log.error("ViettelAI faceMatch error", e);
+        } catch (Exception e) {
+            log.error("ViettelAI faceMatch error: {}", e.getMessage());
             return Map.of("code", 500, "en_message", e.getMessage());
         }
     }
@@ -66,10 +69,10 @@ public class ViettelAiService {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", resource(face));
             ResponseEntity<Map> resp = restTemplate.postForEntity(
-                    BASE_URL + "/liveness_check?token=" + TOKEN, entity(body), Map.class);
+                    BASE_URL + "/liveness_check?token=" + token, entity(body), Map.class);
             return resp.getBody() != null ? resp.getBody() : Map.of("code", 500);
-        } catch (IOException e) {
-            log.error("ViettelAI livenessCheck error", e);
+        } catch (Exception e) {
+            log.error("ViettelAI livenessCheck error: {}", e.getMessage());
             return Map.of("code", 500, "en_message", e.getMessage());
         }
     }

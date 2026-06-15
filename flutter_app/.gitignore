@@ -1,3 +1,6 @@
+# Environment — chứa API keys, không commit
+.env.json
+
 # Miscellaneous
 *.class
 *.log
