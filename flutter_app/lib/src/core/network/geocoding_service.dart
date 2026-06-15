@@ -66,5 +66,19 @@ class GeocodingService {
     }
   }
 
-  static Future<GeocodingResult?> resolvePlace(String refId) async => null;
+  static Future<GeocodingResult?> resolvePlace(String placeId) async {
+    try {
+      final resp = await _dio.get('/api/geo/place', queryParameters: {'placeId': placeId});
+      final data = resp.data;
+      if (data is Map && data['lat'] != null && data['lon'] != null) {
+        return GeocodingResult(
+          address: data['place_name']?.toString() ?? '',
+          lat: (data['lat'] as num).toDouble(),
+          lng: (data['lon'] as num).toDouble(),
+          refId: placeId,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-# GoRento — Tài liệu phân tích nghiệp vụ và kế hoạch triển khai
+de# GoRento — Tài liệu phân tích nghiệp vụ và kế hoạch triển khai
 
 ## 1. Mục tiêu sản phẩm
 GoRento là ứng dụng thuê xe di động theo định hướng mobile-first, xây dựng trên Flutter cho client và Spring Boot cho backend. Hệ thống cần hỗ trợ đầy đủ các luồng đặt xe, thanh toán, quản lý xe, tracking vị trí, và có khả năng tích hợp AI cho xác minh danh tính, chống gian lận, và hỗ trợ vận hành.

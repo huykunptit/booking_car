@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../core/network/dio_provider.dart';
 import '../../core/network/geocoding_service.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -175,12 +176,27 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
     final String address;
 
     if (result.lat == 0.0 || result.lng == 0.0) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể lấy tọa độ của địa điểm này')),
-        );
+      if (result.refId == null || result.refId!.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không thể lấy tọa độ của địa điểm này')),
+          );
+        }
+        return;
       }
-      return;
+      setState(() => _isGeocoding = true);
+      final resolved = await GeocodingService.resolvePlace(result.refId!);
+      if (mounted) setState(() => _isGeocoding = false);
+      if (resolved == null || (resolved.lat == 0.0 && resolved.lng == 0.0)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không thể lấy tọa độ của địa điểm này')),
+          );
+        }
+        return;
+      }
+      point = LatLng(resolved.lat, resolved.lng);
+      address = resolved.address.isNotEmpty ? resolved.address : result.address;
     } else {
       point = LatLng(result.lat, result.lng);
       address = result.address;
@@ -328,8 +344,8 @@ class _LocationPickerDialogState extends State<LocationPickerDialog> {
                       children: [
                         TileLayer(
                           urlTemplate: _useSatellite
-                              ? 'https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png?apikey=93f3886be392ad743f665ac2200b40b7'
-                              : 'https://basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png',
+                              ? 'https://maps.goong.io/tiles/satellite/{z}/{x}/{y}.png?api_key=$goongMapKey'
+                              : 'https://tiles.goong.io/goong_map_web/{z}/{x}/{y}.png?api_key=$goongMapKey',
                           userAgentPackageName: 'vehicle.booking.system',
                         ),
                         if (_selected != null)
