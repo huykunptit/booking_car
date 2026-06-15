@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Secrets — local only, never commit ###
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
+src/main/resources/firebase-service-account.json
