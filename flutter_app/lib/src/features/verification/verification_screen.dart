@@ -6,12 +6,9 @@ import 'package:dio/dio.dart';
 
 import '../../core/network/dio_provider.dart';
 import '../../core/theme/app_theme.dart';
+import 'verification_provider.dart';
 
-final verificationStatusProvider =
-    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final response = await ref.read(dioProvider).get('/api/verification/status');
-  return response.data['data'] as Map<String, dynamic>;
-});
+export 'verification_provider.dart';
 
 // ─── Step definition ───────────────────────────────────────────────────────
 
@@ -71,8 +68,6 @@ enum _Step {
   final String hint;
   final String endpoint;
   final String fileParam;
-
-  // face step needs to also send the CCCD front image for matching
   final bool needsIdRef;
 }
 
@@ -87,44 +82,48 @@ class VerificationScreen extends ConsumerStatefulWidget {
 
 class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   final _picker = ImagePicker();
-
-  // Track uploading state per step
   final Map<_Step, bool> _uploading = {for (final s in _Step.values) s: false};
+  final Map<_Step, Uint8List?> _stepPreviews = {};
 
-  // Cache the CCCD front image bytes for face-match step
   Uint8List? _cccdFrontBytes;
   String? _cccdFrontName;
 
   bool get _anyUploading => _uploading.values.any((v) => v);
 
-  Future<void> _pickAndUpload(_Step step, {ImageSource source = ImageSource.gallery}) async {
+  Future<void> _pickAndUpload(_Step step,
+      {ImageSource source = ImageSource.gallery}) async {
     if (_anyUploading) return;
 
-    final picked = await _picker.pickImage(source: source, imageQuality: 90);
+    final picked =
+        await _picker.pickImage(source: source, imageQuality: 90);
     if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+
+    // Show preview immediately before upload
+    if (mounted) setState(() => _stepPreviews[step] = bytes);
 
     setState(() => _uploading[step] = true);
 
     try {
-      final bytes = await picked.readAsBytes();
       final dio = ref.read(dioProvider);
       final FormData form;
 
       if (step == _Step.cccdFront) {
-        // Cache for later face-match
         _cccdFrontBytes = bytes;
         _cccdFrontName = picked.name;
       }
 
       if (step == _Step.face) {
-        // Face step sends selfie + previously cached CCCD image
         if (_cccdFrontBytes == null) {
-          _showSnack('Vui lòng upload CCCD mặt trước trước khi xác thực khuôn mặt', Colors.orange);
+          _showSnack('Vui lòng upload CCCD mặt trước trước khi xác thực khuôn mặt',
+              Colors.orange);
           return;
         }
         form = FormData.fromMap({
           'selfie': MultipartFile.fromBytes(bytes, filename: picked.name),
-          'idImage': MultipartFile.fromBytes(_cccdFrontBytes!, filename: _cccdFrontName ?? 'cccd.jpg'),
+          'idImage': MultipartFile.fromBytes(_cccdFrontBytes!,
+              filename: _cccdFrontName ?? 'cccd.jpg'),
         });
       } else {
         form = FormData.fromMap({
@@ -133,7 +132,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       }
 
       final response = await dio.post(step.endpoint, data: form);
-      final data = response.data['data'] as Map<String, dynamic>? ?? {};
+      final data =
+          response.data['data'] as Map<String, dynamic>? ?? {};
 
       if (!mounted) return;
       ref.invalidate(verificationStatusProvider);
@@ -151,11 +151,13 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           msg = 'Không phát hiện khuôn mặt sống — vui lòng chụp lại';
           color = Colors.red;
         } else if (faceVerified) {
-          final score = ((data['faceMatchScore'] ?? 0) * 100).toStringAsFixed(0);
+          final score =
+              ((data['faceMatchScore'] ?? 0) * 100).toStringAsFixed(0);
           msg = 'Khuôn mặt khớp $score% — xác thực thành công!';
           color = Colors.green;
         } else {
-          final score = ((data['faceMatchScore'] ?? 0) * 100).toStringAsFixed(0);
+          final score =
+              ((data['faceMatchScore'] ?? 0) * 100).toStringAsFixed(0);
           msg = 'Khuôn mặt không khớp ($score%) — vui lòng thử lại';
           color = Colors.orange;
         }
@@ -166,7 +168,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         msg = '${step.label} xác minh thành công!';
         color = Colors.green;
       } else if (step == _Step.cccdBack || step == _Step.licenseBack) {
-        // Back side only needs spoof check, OCR optional
         msg = '${step.label} hợp lệ!';
         color = Colors.green;
       } else {
@@ -176,13 +177,9 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
 
       _showSnack(msg, color);
     } on DioException catch (e) {
-      if (mounted) {
-        _showSnack('Lỗi kết nối: ${e.message}', Colors.red);
-      }
+      if (mounted) _showSnack('Lỗi kết nối: ${e.message}', Colors.red);
     } catch (e) {
-      if (mounted) {
-        _showSnack('Lỗi: $e', Colors.red);
-      }
+      if (mounted) _showSnack('Lỗi: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _uploading[step] = false);
     }
@@ -196,7 +193,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     ));
   }
 
-  // ── Source picker bottom sheet ─────────────────────────────────────────
+  // ── Source picker ──────────────────────────────────────────────────────────
   void _showSourcePicker(_Step step) {
     showModalBottomSheet(
       context: context,
@@ -208,17 +205,26 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2)),
+            ),
             const SizedBox(height: 16),
-            Text('Chọn nguồn ảnh', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text('Chọn nguồn ảnh',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.camera_alt_rounded),
               title: const Text('Chụp ảnh'),
               onTap: () {
                 Navigator.pop(context);
-                _pickAndUpload(step, source: ImageSource.camera);
+                _showCameraGuide(step); // show guide before opening camera
               },
             ),
             ListTile(
@@ -236,6 +242,25 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
     );
   }
 
+  // ── Camera guide sheet ─────────────────────────────────────────────────────
+  void _showCameraGuide(_Step step) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _CameraGuideSheet(
+        step: step,
+        onConfirm: () {
+          Navigator.pop(context);
+          _pickAndUpload(step, source: ImageSource.camera);
+        },
+      ),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final statusAsync = ref.watch(verificationStatusProvider);
@@ -249,16 +274,21 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
             expandedHeight: 140,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(gradient: AppTheme.heroGradient),
-                padding: const EdgeInsets.fromLTRB(24, 88, 24, 20),
+                decoration:
+                    const BoxDecoration(gradient: AppTheme.heroGradient),
+                padding:
+                    const EdgeInsets.fromLTRB(24, 88, 24, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text('Xác minh danh tính',
-                        style: tt.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                        style: tt.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700)),
                     Text('Hoàn tất 5 bước để thuê xe dễ dàng',
-                        style: tt.bodySmall?.copyWith(color: Colors.white70)),
+                        style: tt.bodySmall
+                            ?.copyWith(color: Colors.white70)),
                   ],
                 ),
               ),
@@ -271,19 +301,19 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               padding: const EdgeInsets.all(20),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  _OverallBadge(status: status['status']?.toString() ?? 'UNVERIFIED'),
+                  _OverallBadge(
+                      status: status['status']?.toString() ?? 'UNVERIFIED'),
                   const SizedBox(height: 20),
 
-                  // ── Progress bar ─────────────────────────────────────
                   _ProgressBar(status: status),
                   const SizedBox(height: 24),
 
-                  // ── Step cards ───────────────────────────────────────
                   _StepCard(
                     step: _Step.cccdFront,
                     verified: status['cccdVerified'] == true,
                     spoofed: status['cccdSpoofed'] == true,
                     uploading: _uploading[_Step.cccdFront]!,
+                    previewBytes: _stepPreviews[_Step.cccdFront],
                     extractedInfo: status['cccdVerified'] == true
                         ? '${status['fullName']}  •  ${status['cccdNumber']}'
                         : null,
@@ -296,6 +326,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     verified: status['cccdBackVerified'] == true,
                     spoofed: status['cccdBackSpoofed'] == true,
                     uploading: _uploading[_Step.cccdBack]!,
+                    previewBytes: _stepPreviews[_Step.cccdBack],
                     onTap: () => _showSourcePicker(_Step.cccdBack),
                   ),
                   const SizedBox(height: 12),
@@ -305,6 +336,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     verified: status['licenseVerified'] == true,
                     spoofed: status['licenseSpoofed'] == true,
                     uploading: _uploading[_Step.licenseFront]!,
+                    previewBytes: _stepPreviews[_Step.licenseFront],
                     extractedInfo: status['licenseVerified'] == true
                         ? 'Hạng ${status['licenseClass'] ?? '?'}'
                         : null,
@@ -317,6 +349,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                     verified: status['licenseBackVerified'] == true,
                     spoofed: status['licenseBackSpoofed'] == true,
                     uploading: _uploading[_Step.licenseBack]!,
+                    previewBytes: _stepPreviews[_Step.licenseBack],
                     onTap: () => _showSourcePicker(_Step.licenseBack),
                   ),
                   const SizedBox(height: 12),
@@ -324,8 +357,11 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   _FaceStepCard(
                     verified: status['faceMatchVerified'] == true,
                     isLive: status['livenessVerified'] == true,
-                    faceScore: (status['faceMatchScore'] as num?)?.toDouble() ?? 0.0,
+                    faceScore:
+                        (status['faceMatchScore'] as num?)?.toDouble() ??
+                            0.0,
                     uploading: _uploading[_Step.face]!,
+                    previewBytes: _stepPreviews[_Step.face],
                     cccdFrontUploaded: status['cccdVerified'] == true,
                     onTap: () => _showSourcePicker(_Step.face),
                   ),
@@ -346,7 +382,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
                   Text('Lỗi: $e'),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => ref.invalidate(verificationStatusProvider),
+                    onPressed: () =>
+                        ref.invalidate(verificationStatusProvider),
                     child: const Text('Thử lại'),
                   ),
                 ]),
@@ -357,6 +394,186 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
       ),
     );
   }
+}
+
+// ─── Camera guide sheet ────────────────────────────────────────────────────
+
+class _CameraGuideSheet extends StatelessWidget {
+  const _CameraGuideSheet({required this.step, required this.onConfirm});
+
+  final _Step step;
+  final VoidCallback onConfirm;
+
+  bool get _isFace => step == _Step.face;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    final tips = _isFace
+        ? const [
+            'Nhìn thẳng vào camera, giữ khuôn mặt trong khung',
+            'Đảm bảo đủ ánh sáng, tránh ngược sáng',
+            'Không đeo kính, khẩu trang hoặc mũ',
+            'Giữ điện thoại ngang tầm mắt',
+          ]
+        : const [
+            'Đặt giấy tờ trên nền phẳng, màu tối',
+            'Đảm bảo đủ 4 góc giấy tờ trong khung',
+            'Tránh phản sáng và bóng che khuất',
+            'Giữ điện thoại song song với giấy tờ',
+          ];
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _isFace ? 'Hướng dẫn chụp selfie' : 'Hướng dẫn chụp giấy tờ',
+              style:
+                  tt.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 24),
+
+            // Frame illustration
+            _FrameIllustration(isFace: _isFace, step: step),
+            const SizedBox(height: 24),
+
+            // Tips
+            ...tips.map((tip) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          size: 18, color: cs.primary),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(tip, style: tt.bodyMedium)),
+                    ],
+                  ),
+                )),
+
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onConfirm,
+                icon: const Icon(Icons.camera_alt_rounded),
+                label: const Text('Mở camera'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Frame illustration ────────────────────────────────────────────────────
+
+class _FrameIllustration extends StatelessWidget {
+  const _FrameIllustration({required this.isFace, required this.step});
+
+  final bool isFace;
+  final _Step step;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    if (isFace) {
+      return Container(
+        width: 160,
+        height: 200,
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(80),
+          border: Border.all(color: cs.primary, width: 2.5),
+        ),
+        child: Icon(Icons.face_rounded,
+            size: 72, color: cs.primary.withValues(alpha: 0.25)),
+      );
+    }
+
+    return Container(
+      width: 260,
+      height: 160,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          // Corner markers
+          Positioned(
+              top: 0,
+              left: 0,
+              child: CustomPaint(
+                  size: const Size(24, 24),
+                  painter: _CornerPainter(color: cs.primary))),
+          Positioned(
+              top: 0,
+              right: 0,
+              child: Transform.scale(
+                  scaleX: -1,
+                  child: CustomPaint(
+                      size: const Size(24, 24),
+                      painter: _CornerPainter(color: cs.primary)))),
+          Positioned(
+              bottom: 0,
+              left: 0,
+              child: Transform.scale(
+                  scaleY: -1,
+                  child: CustomPaint(
+                      size: const Size(24, 24),
+                      painter: _CornerPainter(color: cs.primary)))),
+          Positioned(
+              bottom: 0,
+              right: 0,
+              child: Transform.scale(
+                  scaleX: -1,
+                  scaleY: -1,
+                  child: CustomPaint(
+                      size: const Size(24, 24),
+                      painter: _CornerPainter(color: cs.primary)))),
+          Center(
+            child: Icon(step.icon,
+                size: 48, color: cs.primary.withValues(alpha: 0.2)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CornerPainter extends CustomPainter {
+  const _CornerPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset.zero, Offset(size.width, 0), paint);
+    canvas.drawLine(Offset.zero, Offset(0, size.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Overall badge ─────────────────────────────────────────────────────────
@@ -371,10 +588,26 @@ class _OverallBadge extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
 
     final (icon, color, label) = switch (status) {
-      'VERIFIED'  => (Icons.verified_rounded,      Colors.green,    'Đã xác minh đầy đủ — có thể thuê xe'),
-      'PENDING'   => (Icons.pending_rounded,        Colors.orange,   'Đã xác minh một phần — hoàn tất các bước còn lại'),
-      'REJECTED'  => (Icons.cancel_rounded,         cs.error,        'Xác minh thất bại — giấy tờ không hợp lệ'),
-      _           => (Icons.info_outline_rounded,   cs.outline,      'Chưa xác minh — hoàn tất 5 bước bên dưới'),
+      'VERIFIED' => (
+          Icons.verified_rounded,
+          Colors.green,
+          'Đã xác minh đầy đủ — có thể thuê xe'
+        ),
+      'PENDING' => (
+          Icons.pending_rounded,
+          Colors.orange,
+          'Đã xác minh một phần — hoàn tất các bước còn lại'
+        ),
+      'REJECTED' => (
+          Icons.cancel_rounded,
+          cs.error,
+          'Xác minh thất bại — giấy tờ không hợp lệ'
+        ),
+      _ => (
+          Icons.info_outline_rounded,
+          cs.outline,
+          'Chưa xác minh — hoàn tất 5 bước bên dưới'
+        ),
     };
 
     return Container(
@@ -389,7 +622,8 @@ class _OverallBadge extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(label,
-              style: tt.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+              style: tt.titleSmall
+                  ?.copyWith(color: color, fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -420,10 +654,12 @@ class _ProgressBar extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Text('Tiến độ xác minh', style: Theme.of(context).textTheme.labelMedium),
+        Text('Tiến độ xác minh',
+            style: Theme.of(context).textTheme.labelMedium),
         const Spacer(),
-        Text('$done/5 bước', style: Theme.of(context).textTheme.labelMedium
-            ?.copyWith(color: cs.primary, fontWeight: FontWeight.w700)),
+        Text('$done/5 bước',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: cs.primary, fontWeight: FontWeight.w700)),
       ]),
       const SizedBox(height: 8),
       ClipRRect(
@@ -432,7 +668,8 @@ class _ProgressBar extends StatelessWidget {
           value: pct,
           minHeight: 8,
           backgroundColor: cs.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation(pct == 1.0 ? Colors.green : cs.primary),
+          valueColor: AlwaysStoppedAnimation(
+              pct == 1.0 ? Colors.green : cs.primary),
         ),
       ),
     ]);
@@ -448,6 +685,7 @@ class _StepCard extends StatelessWidget {
     required this.spoofed,
     required this.uploading,
     required this.onTap,
+    this.previewBytes,
     this.extractedInfo,
   });
 
@@ -455,6 +693,7 @@ class _StepCard extends StatelessWidget {
   final bool verified;
   final bool spoofed;
   final bool uploading;
+  final Uint8List? previewBytes;
   final String? extractedInfo;
   final VoidCallback onTap;
 
@@ -475,23 +714,44 @@ class _StepCard extends StatelessWidget {
         color: cs.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         boxShadow: [AppTheme.softShadow],
-        border: verified ? Border.all(color: Colors.green.withValues(alpha: 0.3)) : null,
+        border: verified
+            ? Border.all(color: Colors.green.withValues(alpha: 0.3))
+            : null,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+          // Preview thumbnail or icon
+          if (previewBytes != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(previewBytes!,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                  cacheWidth: 88),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(step.icon, color: cs.primary, size: 20),
             ),
-            child: Icon(step.icon, color: cs.primary, size: 20),
-          ),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(step.label, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-            Text(step.hint, style: tt.bodySmall?.copyWith(color: cs.outline), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(step.label,
+                    style:
+                        tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                Text(step.hint,
+                    style: tt.bodySmall?.copyWith(color: cs.outline),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ])),
           _StatusChip(label: stateLabel, color: stateColor),
         ]),
         if (extractedInfo != null) ...[
@@ -519,6 +779,7 @@ class _FaceStepCard extends StatelessWidget {
     required this.uploading,
     required this.cccdFrontUploaded,
     required this.onTap,
+    this.previewBytes,
   });
 
   final bool verified;
@@ -526,6 +787,7 @@ class _FaceStepCard extends StatelessWidget {
   final double faceScore;
   final bool uploading;
   final bool cccdFrontUploaded;
+  final Uint8List? previewBytes;
   final VoidCallback onTap;
 
   @override
@@ -544,45 +806,71 @@ class _FaceStepCard extends StatelessWidget {
         color: cs.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         boxShadow: [AppTheme.softShadow],
-        border: verified ? Border.all(color: Colors.green.withValues(alpha: 0.3)) : null,
+        border: verified
+            ? Border.all(color: Colors.green.withValues(alpha: 0.3))
+            : null,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+          // Preview thumbnail or icon
+          if (previewBytes != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Image.memory(previewBytes!,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                  cacheWidth: 88),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(step.icon, color: cs.primary, size: 20),
             ),
-            child: Icon(step.icon, color: cs.primary, size: 20),
-          ),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(step.label, style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-            Text(step.hint, style: tt.bodySmall?.copyWith(color: cs.outline), maxLines: 2),
-          ])),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(step.label,
+                    style:
+                        tt.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                Text(step.hint,
+                    style: tt.bodySmall?.copyWith(color: cs.outline),
+                    maxLines: 2),
+              ])),
           _StatusChip(label: stateLabel, color: stateColor),
         ]),
 
         if (faceScore > 0) ...[
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: (verified ? Colors.green : Colors.orange).withValues(alpha: 0.08),
+              color: (verified ? Colors.green : Colors.orange)
+                  .withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(children: [
               Icon(
-                isLive ? Icons.face_retouching_natural_rounded : Icons.no_photography_rounded,
-                color: isLive ? Colors.green : Colors.red, size: 16,
+                isLive
+                    ? Icons.face_retouching_natural_rounded
+                    : Icons.no_photography_rounded,
+                color: isLive ? Colors.green : Colors.red,
+                size: 16,
               ),
               const SizedBox(width: 8),
               Text(
                 isLive
                     ? 'Khuôn mặt thật  •  Khớp ${(faceScore * 100).toStringAsFixed(0)}%'
                     : 'Không phát hiện khuôn mặt sống',
-                style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                style:
+                    tt.bodySmall?.copyWith(fontWeight: FontWeight.w500),
               ),
             ]),
           ),
@@ -623,15 +911,16 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(label,
-        style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(color: color, fontWeight: FontWeight.w700)),
-  );
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color, fontWeight: FontWeight.w700)),
+      );
 }
 
 class _ExtractedRow extends StatelessWidget {
@@ -640,18 +929,24 @@ class _ExtractedRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.green.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Row(children: [
-      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
-      const SizedBox(width: 8),
-      Expanded(child: Text(info,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500))),
-    ]),
-  );
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(children: [
+          const Icon(Icons.check_circle_rounded,
+              color: Colors.green, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text(info,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w500))),
+        ]),
+      );
 }
 
 class _UploadButton extends StatelessWidget {
@@ -682,7 +977,10 @@ class _UploadButton extends StatelessWidget {
                 : uploadLabel;
 
     final icon = uploading
-        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+        ? const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2))
         : Icon(
             onTap == null
                 ? Icons.lock_outline_rounded
@@ -716,13 +1014,16 @@ class _TipsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.primaryContainer.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: cs.primary.withValues(alpha: 0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.tips_and_updates_rounded, color: cs.primary, size: 18),
+          Icon(Icons.tips_and_updates_rounded,
+              color: cs.primary, size: 18),
           const SizedBox(width: 8),
-          Text('Lưu ý khi chụp ảnh', style: tt.labelLarge?.copyWith(color: cs.primary)),
+          Text('Lưu ý khi chụp ảnh',
+              style: tt.labelLarge?.copyWith(color: cs.primary)),
         ]),
         const SizedBox(height: 10),
         for (final tip in const [
@@ -733,10 +1034,13 @@ class _TipsCard extends StatelessWidget {
         ])
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('• ', style: tt.bodySmall?.copyWith(color: cs.primary)),
-              Expanded(child: Text(tip, style: tt.bodySmall)),
-            ]),
+            child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• ',
+                      style: tt.bodySmall?.copyWith(color: cs.primary)),
+                  Expanded(child: Text(tip, style: tt.bodySmall)),
+                ]),
           ),
       ]),
     );

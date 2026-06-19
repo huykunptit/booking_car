@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/dio_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../verification/verification_provider.dart';
 
 final carDetailProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, carId) async {
   final dio = ref.read(dioProvider);
@@ -36,6 +37,7 @@ class CarDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final carAsync = ref.watch(carDetailProvider(carId));
     final trackingAsync = ref.watch(carTrackingProvider(carId));
+    final verifyStatus = ref.watch(verificationStatusProvider).valueOrNull;
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
@@ -367,7 +369,13 @@ class CarDetailScreen extends ConsumerWidget {
                     ],
                   ),
                   child: GradientButton(
-                    onPressed: () => context.push('/cars/$carId/book'),
+                    onPressed: () {
+                      if (verifyStatus?['status'] == 'VERIFIED') {
+                        context.push('/cars/$carId/book');
+                      } else {
+                        _showVerifyRequired(context);
+                      }
+                    },
                     child: const Text('Tiếp tục đặt xe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
                   ),
                 ),
@@ -425,6 +433,73 @@ class CarDetailScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+void _showVerifyRequired(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_user_rounded,
+                  color: Colors.orange, size: 36),
+            ),
+            const SizedBox(height: 16),
+            Text('Cần xác minh danh tính',
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(
+              'Bạn cần hoàn tất xác minh CCCD & bằng lái trước khi đặt xe.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.outline),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.push('/verification');
+                },
+                icon: const Icon(Icons.badge_rounded),
+                label: const Text('Xác minh ngay'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Để sau'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _SpecTag extends StatelessWidget {

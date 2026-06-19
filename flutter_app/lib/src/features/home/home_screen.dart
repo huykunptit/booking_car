@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/dio_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../notifications/notification_screen.dart';
+import '../verification/verification_provider.dart';
 
 final dashboardStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final dio = ref.read(dioProvider);
@@ -121,7 +122,12 @@ class HomeScreen extends ConsumerWidget {
                       loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
+
+                    // Verification banner (hidden when verified)
+                    _VerificationBanner(
+                      status: ref.watch(verificationStatusProvider).valueOrNull?['status']?.toString(),
+                    ),
 
                     // Quick actions
                     Text(
@@ -374,6 +380,69 @@ class _RecentBookingCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Verification banner ───────────────────────────────────────────────────
+
+class _VerificationBanner extends StatelessWidget {
+  const _VerificationBanner({required this.status});
+
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status == 'VERIFIED') return const SizedBox.shrink();
+
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    final isPending = status == 'PENDING';
+    final color = isPending ? Colors.blue : Colors.orange;
+    final icon = isPending ? Icons.pending_rounded : Icons.shield_outlined;
+    final title = isPending ? 'Hoàn tất xác minh danh tính' : 'Xác minh để thuê xe';
+    final subtitle = isPending
+        ? 'Bạn đã xác minh một phần — hoàn tất các bước còn lại'
+        : 'Upload CCCD & bằng lái để có thể đặt xe';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: GestureDetector(
+        onTap: () => context.push('/verification'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title,
+                    style: tt.titleSmall?.copyWith(
+                        color: color, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color, size: 20),
+          ]),
         ),
       ),
     );

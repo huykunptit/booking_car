@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/network/dio_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../verification/verification_provider.dart';
 
 final userProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final dio = ref.read(dioProvider);
@@ -19,6 +20,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
+    final verifyStatus = ref.watch(verificationStatusProvider).valueOrNull?['status']?.toString();
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
@@ -154,9 +156,14 @@ class ProfileScreen extends ConsumerWidget {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('Xác minh danh tính',
-                                            style: tt.titleMedium
-                                                ?.copyWith(fontWeight: FontWeight.w600)),
+                                        Row(children: [
+                                          Text('Xác minh danh tính',
+                                              style: tt.titleMedium
+                                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                                          const SizedBox(width: 8),
+                                          if (verifyStatus != null)
+                                            _VerifyBadge(status: verifyStatus),
+                                        ]),
                                         Text(
                                           'Upload CCCD & Bằng lái để thuê xe dễ dàng hơn',
                                           style: tt.bodySmall?.copyWith(color: cs.outline),
@@ -291,6 +298,34 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _VerifyBadge extends StatelessWidget {
+  const _VerifyBadge({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      'VERIFIED' => ('Đã xác minh', Colors.green),
+      'PENDING'  => ('Đang xử lý', Colors.orange),
+      'REJECTED' => ('Bị từ chối', Colors.red),
+      _          => ('Chưa xác minh', Theme.of(context).colorScheme.outline),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

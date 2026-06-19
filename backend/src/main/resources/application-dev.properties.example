@@ -63,3 +63,6 @@ goong.api-key=YOUR_GOONG_API_KEY
 
 # ViettelAI eKYC (https://viettelai.vn)
 viettelai.token=YOUR_VIETTELAI_TOKEN
+
+# Local Python eKYC fallback (chạy: cd ekyc-service && docker-compose up)
+ekyc.local-service-url=http://localhost:8001

@@ -8,7 +8,7 @@ import vehicle.booking.exception.AppException;
 import vehicle.booking.exception.ErrorCode;
 import vehicle.booking.repository.UserRepository;
 import vehicle.booking.repository.UserVerificationRepository;
-import vehicle.booking.service.ViettelAiService;
+import vehicle.booking.service.ekyc.EkycService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,7 @@ public class VerificationController {
 
     private final UserRepository userRepository;
     private final UserVerificationRepository verificationRepository;
-    private final ViettelAiService viettelAiService;
+    private final EkycService ekycService;
 
     @GetMapping("/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatus(
@@ -76,7 +76,7 @@ public class VerificationController {
         User user = getUser(userDetails);
 
         // 1. Spoof check
-        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        Map<String, Object> spoofResult = ekycService.spoofCheck(image);
         boolean isSpoofed = false;
         if (spoofResult.get("data") instanceof Map<?,?> sd) {
             Object spoofVal = sd.get("is_fake");
@@ -85,7 +85,7 @@ public class VerificationController {
         }
 
         // 2. OCR
-        Map<String, Object> ocrResult = viettelAiService.ocrIdCard(image);
+        Map<String, Object> ocrResult = ekycService.ocrIdCard(image);
         boolean ocrOk = Integer.valueOf(200).equals(ocrResult.get("code"));
 
         UserVerification v = verificationRepository.findByUserUserId(user.getUserId())
@@ -122,7 +122,7 @@ public class VerificationController {
         User user = getUser(userDetails);
 
         // Spoof check on back side
-        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        Map<String, Object> spoofResult = ekycService.spoofCheck(image);
         boolean isSpoofed = false;
         if (spoofResult.get("data") instanceof Map<?,?> sd) {
             Object spoofVal = sd.get("is_fake");
@@ -131,7 +131,7 @@ public class VerificationController {
         }
 
         // Attempt OCR to extract barcode number from back side
-        Map<String, Object> ocrResult = viettelAiService.ocrIdCard(image);
+        Map<String, Object> ocrResult = ekycService.ocrIdCard(image);
         boolean ocrOk = Integer.valueOf(200).equals(ocrResult.get("code"));
         String backNumber = null;
         if (ocrOk && ocrResult.get("data") instanceof Map<?,?> d) {
@@ -165,7 +165,7 @@ public class VerificationController {
             @AuthenticationPrincipal UserDetails userDetails) {
         User user = getUser(userDetails);
 
-        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        Map<String, Object> spoofResult = ekycService.spoofCheck(image);
         boolean isSpoofed = false;
         if (spoofResult.get("data") instanceof Map<?,?> sd) {
             Object spoofVal = sd.get("is_fake");
@@ -173,7 +173,7 @@ public class VerificationController {
             isSpoofed = Boolean.TRUE.equals(spoofVal);
         }
 
-        Map<String, Object> ocrResult = viettelAiService.ocrIdCard(image);
+        Map<String, Object> ocrResult = ekycService.ocrIdCard(image);
         boolean ocrOk = Integer.valueOf(200).equals(ocrResult.get("code"));
 
         UserVerification v = verificationRepository.findByUserUserId(user.getUserId())
@@ -208,7 +208,7 @@ public class VerificationController {
         User user = getUser(userDetails);
 
         // Spoof check on back side
-        Map<String, Object> spoofResult = viettelAiService.spoofCheck(image);
+        Map<String, Object> spoofResult = ekycService.spoofCheck(image);
         boolean isSpoofed = false;
         if (spoofResult.get("data") instanceof Map<?,?> sd) {
             Object spoofVal = sd.get("is_fake");
@@ -239,7 +239,7 @@ public class VerificationController {
         User user = getUser(userDetails);
 
         // 1. Liveness check
-        Map<String, Object> livenessResult = viettelAiService.livenessCheck(selfie);
+        Map<String, Object> livenessResult = ekycService.livenessCheck(selfie);
         boolean isLive = false;
         float livenessScore = 0f;
         if (livenessResult.get("data") instanceof Map<?,?> ld) {
@@ -252,7 +252,7 @@ public class VerificationController {
         }
 
         // 2. Face matching
-        Map<String, Object> faceMatchResult = viettelAiService.faceMatch(selfie, idImage);
+        Map<String, Object> faceMatchResult = ekycService.faceMatch(selfie, idImage);
         float faceMatchScore = 0f;
         if (faceMatchResult.get("data") instanceof Map<?,?> fd) {
             Object simVal = fd.get("similarity");
