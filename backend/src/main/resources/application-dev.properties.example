@@ -50,12 +50,16 @@ twilio.verify-service-sid=${TWILIO_VERIFY_SERVICE_SID:}
 twilio.mock-otp=${TWILIO_MOCK_OTP:123456}
 firebase.service-account-path=${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
 
-# VNPay (Sandbox — đăng ký tại https://sandbox.vnpayment.vn/devreg/)
-vnpay.tmn-code=YOUR_TMN_CODE
-vnpay.hash-secret=YOUR_HASH_SECRET
+# VNPay Sandbox — đăng ký tại: https://sandbox.vnpayment.vn/devsupport/
+# Sau khi đăng ký sẽ nhận được TMN Code và Hash Secret qua email
+vnpay.tmn-code=${VNPAY_TMN_CODE:YOUR_TMN_CODE}
+vnpay.hash-secret=${VNPAY_HASH_SECRET:YOUR_HASH_SECRET}
 vnpay.pay-url=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-vnpay.return-url=https://YOUR_NGROK_URL/api/payments/vnpay/return
-vnpay.frontend-url=https://YOUR_NGROK_URL/my-bookings
+# return-url: mobile webview intercept URL này — host không cần reachable khi test mobile
+# Khi test web/Postman thì cần ngrok: ngrok http 8080
+vnpay.return-url=${VNPAY_RETURN_URL:http://localhost:8080/api/payments/vnpay/return}
+# frontend-url: chỉ dùng cho web redirect — có thể giữ localhost khi test mobile
+vnpay.frontend-url=${VNPAY_FRONTEND_URL:http://localhost:5173/my-bookings}
 
 # Goong Maps (https://account.goong.io)
 # API Key — dùng cho geocoding / autocomplete / routing
