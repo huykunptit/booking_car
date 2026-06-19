@@ -48,6 +48,11 @@ twilio.account-sid=${TWILIO_ACCOUNT_SID:}
 twilio.auth-token=${TWILIO_AUTH_TOKEN:}
 twilio.verify-service-sid=${TWILIO_VERIFY_SERVICE_SID:}
 twilio.mock-otp=${TWILIO_MOCK_OTP:123456}
+# Firebase — chọn 1 trong 2 cách:
+# Cách 1: base64 của file JSON (dùng cho env var / Docker / server)
+#   Lấy base64: base64 -i firebase-service-account.json | tr -d '\n'
+firebase.service-account-json=${FIREBASE_SERVICE_ACCOUNT_JSON:}
+# Cách 2: đường dẫn tới file JSON (dùng cho local dev)
 firebase.service-account-path=${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
 
 # VNPay Sandbox — đăng ký tại: https://sandbox.vnpayment.vn/devsupport/
