@@ -27,6 +27,10 @@ import '../../features/owner/owner_car_list_screen.dart';
 import '../../features/owner/owner_car_form_screen.dart';
 import '../../features/owner/owner_bookings_screen.dart';
 import '../../features/verification/verification_screen.dart';
+import '../../features/admin/admin_dashboard_screen.dart';
+import '../../features/admin/admin_users_screen.dart';
+import '../../features/admin/admin_cars_screen.dart';
+import '../../features/admin/admin_bookings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.read(authControllerProvider);
@@ -110,6 +114,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => OwnerCarFormScreen(carId: state.pathParameters['carId']),
       ),
       GoRoute(path: '/owner/bookings', builder: (context, state) => const OwnerBookingsScreen()),
+      GoRoute(path: '/admin', builder: (context, state) => const AdminDashboardScreen()),
+      GoRoute(path: '/admin/users', builder: (context, state) => const AdminUsersScreen()),
+      GoRoute(path: '/admin/cars', builder: (context, state) => const AdminCarsScreen()),
+      GoRoute(path: '/admin/bookings', builder: (context, state) => const AdminBookingsScreen()),
     ],
   );
 });

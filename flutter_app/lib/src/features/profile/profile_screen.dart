@@ -178,6 +178,51 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
 
+                          // Admin panel entry (only for ADMIN role)
+                          if (role.toUpperCase() == 'ADMIN') ...[
+                            InkWell(
+                              onTap: () => context.push('/admin'),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF1a1a2e), Color(0xFF16213e)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.15),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 22),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Bảng quản trị',
+                                              style: tt.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                                          Text('Quản lý người dùng, xe và đơn đặt',
+                                              style: tt.bodySmall?.copyWith(color: Colors.white70)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
                           // Owner channel entry
                           InkWell(
                             onTap: () => context.push('/owner'),
