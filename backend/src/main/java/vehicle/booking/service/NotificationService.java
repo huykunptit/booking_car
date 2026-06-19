@@ -20,6 +20,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final FcmService fcmService;
 
     public void send(User user, String title, String message, NotificationType type, Long referenceId) {
         Notification n = new Notification();
@@ -29,6 +30,9 @@ public class NotificationService {
         n.setType(type);
         n.setReferenceId(referenceId);
         notificationRepository.save(n);
+
+        // Push to device if FCM token is registered
+        fcmService.send(user.getFcmToken(), title, message);
     }
 
     public Page<NotificationResponse> getMyNotifications(String phone, Pageable pageable) {

@@ -35,4 +35,7 @@ public class User {
 
     @Column(name = "role")
     private String role;
+
+    @Column(name = "fcm_token", length = 512)
+    private String fcmToken;
 }
