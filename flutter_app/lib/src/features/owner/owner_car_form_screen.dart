@@ -1,5 +1,9 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/network/dio_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -28,12 +32,26 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
   bool _loading = false;
   bool _fetchingCar = false;
 
+  // After car is created/saved we get the carId for image management
+  String? _savedCarId;
+
+  // Images loaded from server
+  List<Map<String, dynamic>> _serverImages = [];
+  bool _loadingImages = false;
+  // Images being uploaded (show local preview while uploading)
+  final List<_PendingImage> _pendingUploads = [];
+
   bool get _isEdit => widget.carId != null;
+  String? get _activeCarId => _savedCarId ?? widget.carId;
+  bool get _canManageImages => _activeCarId != null;
 
   @override
   void initState() {
     super.initState();
-    if (_isEdit) _fetchCar();
+    if (_isEdit) {
+      _fetchCar();
+      _fetchImages();
+    }
   }
 
   @override
@@ -67,6 +85,21 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
     }
   }
 
+  Future<void> _fetchImages() async {
+    final carId = _activeCarId;
+    if (carId == null) return;
+    setState(() => _loadingImages = true);
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get('/api/owner/cars/$carId/images');
+      final list = response.data['data'] as List<dynamic>;
+      if (mounted) setState(() => _serverImages = list.cast<Map<String, dynamic>>());
+    } catch (_) {}
+    finally {
+      if (mounted) setState(() => _loadingImages = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
@@ -83,16 +116,25 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
         'fuelType': _fuelType,
         'seats': _seats,
       };
+
       if (_isEdit) {
         await dio.put('/api/owner/cars/${widget.carId}', data: data);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cập nhật xe thành công')));
+        }
       } else {
-        await dio.post('/api/owner/cars', data: data);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isEdit ? 'Cập nhật xe thành công' : 'Đăng xe thành công')),
-        );
-        Navigator.of(context).pop(true);
+        final response = await dio.post('/api/owner/cars', data: data);
+        final created = response.data['data'] as Map<String, dynamic>;
+        final newId = created['carId']?.toString() ?? created['id']?.toString();
+        if (mounted) {
+          setState(() => _savedCarId = newId);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đăng xe thành công — Thêm ảnh xe bên dưới')),
+          );
+          // Scroll down to image section after car is created
+          await Future.delayed(const Duration(milliseconds: 300));
+          _scrollToImages();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -100,6 +142,98 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  final _scrollController = ScrollController();
+
+  void _scrollToImages() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _pickAndUpload() async {
+    final carId = _activeCarId;
+    if (carId == null) return;
+    if (_serverImages.length + _pendingUploads.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tối đa 5 ảnh cho mỗi xe')),
+      );
+      return;
+    }
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    final pending = _PendingImage(bytes: bytes, name: picked.name);
+    setState(() => _pendingUploads.add(pending));
+
+    try {
+      final dio = ref.read(dioProvider);
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: picked.name),
+      });
+      await dio.post('/api/owner/cars/$carId/images', data: formData);
+      if (mounted) {
+        setState(() => _pendingUploads.remove(pending));
+        await _fetchImages();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _pendingUploads.remove(pending));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload thất bại: $e')));
+      }
+    }
+  }
+
+  Future<void> _deleteImage(Map<String, dynamic> image) async {
+    final carId = _activeCarId;
+    if (carId == null) return;
+    final imageId = image['carImageId']?.toString() ?? image['id']?.toString();
+    if (imageId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa ảnh'),
+        content: const Text('Bạn có chắc muốn xóa ảnh này?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('/api/owner/cars/$carId/images/$imageId');
+      if (mounted) await _fetchImages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi xóa ảnh: $e')));
+    }
+  }
+
+  Future<void> _setPrimary(Map<String, dynamic> image) async {
+    final carId = _activeCarId;
+    if (carId == null) return;
+    final imageId = image['carImageId']?.toString() ?? image['id']?.toString();
+    if (imageId == null) return;
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.patch('/api/owner/cars/$carId/images/$imageId/primary');
+      if (mounted) await _fetchImages();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
     }
   }
 
@@ -115,6 +249,7 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Chỉnh sửa xe' : 'Đăng xe mới')),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -219,7 +354,44 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
+
+              // ── Image section — visible after car exists ──
+              if (_canManageImages) ...[
+                _ImageSection(
+                  images: _serverImages,
+                  pendingUploads: _pendingUploads,
+                  loadingImages: _loadingImages,
+                  onAdd: _pickAndUpload,
+                  onDelete: _deleteImage,
+                  onSetPrimary: _setPrimary,
+                  canAdd: _serverImages.length + _pendingUploads.length < 5,
+                ),
+                const SizedBox(height: 32),
+              ] else if (!_isEdit) ...[
+                // Teaser — disabled until car is saved
+                Opacity(
+                  opacity: 0.4,
+                  child: _Section(
+                    title: 'Ảnh xe (tối đa 5)',
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.photo_library_rounded, color: Colors.grey.shade400, size: 32),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Đăng xe trước, rồi thêm ảnh',
+                              style: TextStyle(color: Colors.grey.shade500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ],
           ),
         ),
@@ -227,6 +399,193 @@ class _OwnerCarFormScreenState extends ConsumerState<OwnerCarFormScreen> {
     );
   }
 }
+
+// ── Image section widget ──────────────────────────────────────────────────────
+
+class _PendingImage {
+  _PendingImage({required this.bytes, required this.name});
+  final Uint8List bytes;
+  final String name;
+}
+
+class _ImageSection extends StatelessWidget {
+  const _ImageSection({
+    required this.images,
+    required this.pendingUploads,
+    required this.loadingImages,
+    required this.onAdd,
+    required this.onDelete,
+    required this.onSetPrimary,
+    required this.canAdd,
+  });
+
+  final List<Map<String, dynamic>> images;
+  final List<_PendingImage> pendingUploads;
+  final bool loadingImages;
+  final VoidCallback onAdd;
+  final Future<void> Function(Map<String, dynamic>) onDelete;
+  final Future<void> Function(Map<String, dynamic>) onSetPrimary;
+  final bool canAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        boxShadow: [AppTheme.softShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Ảnh xe (${images.length}/5)',
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              if (canAdd)
+                TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                  label: const Text('Thêm ảnh'),
+                ),
+            ],
+          ),
+          if (loadingImages)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (images.isEmpty && pendingUploads.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.photo_library_outlined, size: 48, color: cs.outlineVariant),
+                    const SizedBox(height: 8),
+                    Text('Chưa có ảnh — nhấn "Thêm ảnh" để tải lên',
+                        style: tt.bodySmall?.copyWith(color: cs.outline)),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              children: [
+                for (final img in images) _ServerImageTile(image: img, onDelete: onDelete, onSetPrimary: onSetPrimary),
+                for (final p in pendingUploads) _PendingImageTile(pending: p),
+              ],
+            ),
+          ],
+          if (images.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                'Nhấn giữ ảnh để đặt làm ảnh đại diện',
+                style: tt.labelSmall?.copyWith(color: cs.outline),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServerImageTile extends StatelessWidget {
+  const _ServerImageTile({required this.image, required this.onDelete, required this.onSetPrimary});
+
+  final Map<String, dynamic> image;
+  final Future<void> Function(Map<String, dynamic>) onDelete;
+  final Future<void> Function(Map<String, dynamic>) onSetPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPrimary = image['primary'] == true || image['isPrimary'] == true;
+    final url = image['imageUrl']?.toString() ?? '';
+
+    return GestureDetector(
+      onLongPress: () => onSetPrimary(image),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.broken_image_rounded, color: Colors.grey),
+              ),
+            ),
+          ),
+          if (isPrimary)
+            Positioned(
+              top: 4, left: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade700,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('Chính', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          Positioned(
+            top: 2, right: 2,
+            child: GestureDetector(
+              onTap: () => onDelete(image),
+              child: Container(
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                padding: const EdgeInsets.all(3),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingImageTile extends StatelessWidget {
+  const _PendingImageTile({required this.pending});
+  final _PendingImage pending;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(pending.bytes, fit: BoxFit.cover),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Reusable form widgets ─────────────────────────────────────────────────────
 
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});

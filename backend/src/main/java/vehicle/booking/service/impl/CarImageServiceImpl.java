@@ -103,6 +103,32 @@ public class CarImageServiceImpl implements CarImageService {
         return mapToResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public void deleteCarImage(Long carId, Long carImageId) {
+        CarImage image = carImageRepository.findByCarImageIdAndCarCarId(carImageId, carId)
+                .orElseThrow(() -> new AppException(ErrorCode.CAR_IMAGE_NOT_FOUND, carImageId));
+
+        boolean wasPrimary = Boolean.TRUE.equals(image.getIsPrimary());
+        String publicId = image.getPublicId();
+
+        carImageRepository.delete(image);
+
+        if (wasPrimary) {
+            carImageRepository.findByCarIdOrderBySortThenCreatedAt(carId)
+                    .stream().findFirst().ifPresent(next -> {
+                        next.setIsPrimary(true);
+                        carImageRepository.save(next);
+                    });
+        }
+
+        if (publicId != null) {
+            try {
+                imageStorageService.deleteByPublicId(publicId);
+            } catch (RuntimeException ignored) {}
+        }
+    }
+
     private void rollbackUploadedImage(String publicId, RuntimeException saveException) {
         try {
             imageStorageService.deleteByPublicId(publicId);

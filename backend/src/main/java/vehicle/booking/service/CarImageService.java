@@ -14,4 +14,6 @@ public interface CarImageService {
     CarImageResponse getPrimaryImageByCarId(Long carId);
 
     CarImageResponse setPrimaryImage(Long carId, Long carImageId);
+
+    void deleteCarImage(Long carId, Long carImageId);
 }
